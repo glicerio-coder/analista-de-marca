@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analista de Marca — análise de conformidade de marca com IA</title>
+<meta name="description" content="Analista de Marca verifica, com inteligência artificial, se peças de comunicação seguem o manual de marca.">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="theme-color" content="#3D6BFF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F7FB;
+    --surface: #FFFFFF;
+    --ink: #0F1B2D;
+    --muted: #5B7085;
+    --brand-gray: #7F99B0;
+    --line: #DDE5EE;
+    --soft: #F7FAFD;
+    --track: #E6ECF3;
+    --cyan: #00B8FF;
+    --violet: #6A2BFF;
+    --accent: #3D6BFF;
+    --grad: linear-gradient(90deg, var(--cyan), var(--violet));
+    --ok: #1F8A4C;
+    --warn: #C98A00;
+    --bad: #C8342B;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.55;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 28px 0 8px; display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; }
+  .logo img { height: 40px; width: auto; display: block; }
+  .tag { font-size: 12px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); padding: 4px 10px; border-radius: 99px; }
+  .hero { padding: 48px 0 36px; }
+  .hero h1 {
+    font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: clamp(34px, 5.4vw, 60px);
+    line-height: 1.08; letter-spacing: -0.025em; margin: 0 0 18px;
+  }
+  .hero h1 em {
+    font-style: normal; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p { color: var(--muted); max-width: 620px; font-size: 17px; margin: 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px; margin-bottom: 18px;
+  }
+  .step-title { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; font-size: 18px; font-weight: 600; }
+  .step-num { font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; color: #fff; background: var(--grad); width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; flex: none; align-self: center; }
+  .hint { color: var(--muted); font-size: 13.5px; margin: 0 0 16px; }
+  .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .opt { position: relative; }
+  .opt input { position: absolute; opacity: 0; }
+  .opt label {
+    display: block; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; cursor: pointer;
+    font-weight: 500; font-size: 14px; transition: border-color .15s, background .15s;
+  }
+  .opt label small { display: block; color: var(--muted); font-weight: 400; font-size: 12.5px; margin-top: 2px; }
+  .opt input:checked + label { border-color: var(--accent); background: #F1F5FF; box-shadow: 0 0 0 1px var(--accent) inset; }
+  .opt input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .drop {
+    border: 1.5px dashed #B9C7D6; border-radius: 12px; padding: 26px; text-align: center; cursor: pointer;
+    color: var(--muted); transition: border-color .15s, background .15s; display: block;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); background: #F1F5FF; }
+  .drop strong { color: var(--ink); }
+  .drop input { display: none; }
+  .file-name { margin-top: 10px; font-size: 13.5px; font-weight: 500; }
+  textarea, select, input[type=text] {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px;
+    font: inherit; background: #fff; color: var(--ink);
+  }
+  textarea { min-height: 140px; resize: vertical; }
+  .row { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-top: 14px; }
+  .row label { font-size: 13px; font-weight: 500; display: block; margin-bottom: 6px; }
+  .preview { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .preview img { height: 110px; border-radius: 8px; border: 1px solid var(--line); }
+  .demo-box { background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font-size: 14px; }
+  .demo-box a { color: var(--accent); font-weight: 500; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+    background: var(--grad); color: #fff; font: inherit; font-weight: 600; font-size: 16px;
+    padding: 16px 28px; border-radius: 99px; transition: transform .1s, filter .15s, box-shadow .15s;
+    box-shadow: 0 6px 18px rgba(61, 107, 255, .28);
+  }
+  .btn:hover { filter: brightness(1.06); box-shadow: 0 8px 22px rgba(61, 107, 255, .36); }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .5; cursor: progress; }
+  .actions { display: flex; align-items: center; gap: 16px; margin: 8px 0 40px; flex-wrap: wrap; }
+  .status { color: var(--muted); font-size: 14px; }
+  .error { background: #FDECEA; color: var(--bad); border: 1px solid #F5C2BE; padding: 14px 16px; border-radius: 10px; margin-bottom: 18px; display: none; }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; border-top-color: transparent; animation: spin 0.8s linear infinite; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+
+  /* Resultado */
+  #resultado { padding-bottom: 60px; }
+  .res-head { display: grid; grid-template-columns: 150px 1fr; gap: 26px; align-items: center; }
+  .score {
+    width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center;
+    background: conic-gradient(var(--c) calc(var(--p) * 1%), var(--track) 0);
+  }
+  .score-inner { width: 118px; height: 118px; border-radius: 50%; background: #fff; display: grid; place-items: center; text-align: center; }
+  .score-num { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; letter-spacing: -0.03em; }
+  .score-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .badge { display: inline-block; padding: 5px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; color: #fff; }
+  .res-head h2 { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 28px; letter-spacing: -0.02em; margin: 10px 0 6px; line-height: 1.1; }
+  .meta { color: var(--muted); font-size: 13.5px; }
+  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+  .crit { display: grid; grid-template-columns: 1fr 70px; gap: 6px 16px; padding: 14px 0; border-top: 1px solid var(--line); }
+  .crit:first-of-type { border-top: 0; padding-top: 0; }
+  .crit-name { font-weight: 600; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .crit-name small { color: var(--muted); font-weight: 400; }
+  .crit-score { text-align: right; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 22px; line-height: 1; }
+  .crit-obs { grid-column: 1 / -1; color: #33465A; font-size: 14px; }
+  .bar { grid-column: 1 / -1; height: 5px; background: var(--track); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; }
+  .pill { font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 99px; }
+  .prob { border-left: 4px solid var(--c); padding: 12px 16px; background: var(--soft); border-radius: 0 10px 10px 0; margin-bottom: 12px; }
+  .prob h4 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .prob p { margin: 4px 0; font-size: 14px; }
+  .prob .lbl { font-weight: 600; }
+  ul.fortes { margin: 0; padding-left: 20px; }
+  ul.fortes li { margin-bottom: 6px; }
+  footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 13px; display: flex; gap: 24px; align-items: center; }
+  footer img { height: 72px; width: auto; flex: none; }
+  @media (max-width: 720px) { footer { flex-direction: column; align-items: flex-start; } }
+  @media (max-width: 720px) {
+    .options { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 1fr; }
+    .res-head { grid-template-columns: 1fr; justify-items: start; }
+    .logo img { height: 32px; }
+    .tag { white-space: nowrap; font-size: 11px; padding: 3px 8px; }
+  }
+  @media (max-width: 400px) { .tag { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="/"><img src="/assets/logo-horizontal.png" alt="Analista de Marca" width="196" height="40"></a>
+    <span class="tag">Protótipo acadêmico · IA</span>
+  </header>
+
+  <section class="hero">
+    <h1>Sua peça está <em>dentro</em> da marca?</h1>
+    <p>Envie o manual de marca e uma peça de comunicação — post, anúncio impresso ou vídeo. A IA confere logo, cores, tipografia, layout, imagem e tom de voz, e devolve um parecer com nota e correções.</p>
+  </section>
+
+  <div class="error" id="erro" role="alert"></div>
+
+  <section class="card">
+    <h3 class="step-title"><span class="step-num">1</span> Manual de marca</h3>
+    <p class="hint">O manual é a régua da análise. Use o exemplo para testar rápido ou envie o seu.</p>
+    <div class="options" role="radiogroup" aria-label="Origem do manual">
+      <div class="opt"><input type="radio" name="manual" id="m-exemplo" value="exemplo" checked><label for="m-exemplo">Manual de exemplo<small>Aurora Café (marca fictícia)</small></label></div>
+      <div class="opt"><input type="radio" name="manual" id="m-pdf" value="pdf"><label for="m-pdf">Enviar PDF<small>até 3 MB</small></label></div>
+      <div class="opt"><input type="radio" name="manual" id="m-texto" value="texto"><label for="m-texto">Colar regras<small>texto livre</small></label></div>
+    </div>
+    <div id="painel-exemplo" class="demo-box">
+      Vamos usar o manual da <strong>Aurora Café</strong>: paleta Café Torrado #3B2416, Creme #F4E9D8 e Laranja Aurora #E8772E; títulos em Fraunces e textos em Inter; tom acolhedor, máx. 2 emojis. <a href="/dados/manual-exemplo-aurora-cafe.md" target="_blank" rel="noopener">Ver manual completo</a> · <a href="/exemplos/" target="_blank" rel="noopener">Baixar peças de teste</a>
+    </div>
+    <label class="drop hidden" id="painel-pdf">
+      <input type="file" id="arq-manual" accept="application/pdf">
+      <strong>Clique para escolher</strong> ou arraste o PDF do manual aqui
+      <div class="file-name" id="nome-manual"></div>
+    </label>
+    <div id="painel-texto" class="hidden">
+      <textarea id="texto-manual" placeholder="Cole aqui as regras do manual: cores (com códigos), fontes, regras do logo, tom de voz, proibições..."></textarea>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3 class="step-title"><span class="step-num">2</span> Peça para analisar</h3>
+    <p class="hint">Imagem (JPG, PNG, WebP), PDF de 1 página ou vídeo curto (MP4/WebM). De vídeos, extraímos 6 quadros automaticamente.</p>
+    <label class="drop" id="drop-peca">
+      <input type="file" id="arq-peca" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,video/mp4,video/webm,video/quicktime">
+      <strong>Clique para escolher</strong> ou arraste a peça aqui
+      <div class="file-name" id="nome-peca"></div>
+    </label>
+    <div class="preview" id="preview"></div>
+    <div class="row">
+      <div>
+        <label for="canal">Canal</label>
+        <select id="canal">
+          <option value="">Detectar automaticamente</option>
+          <option>Instagram — feed</option>
+          <option>Instagram — stories</option>
+          <option>Outras redes sociais</option>
+          <option>Anúncio impresso</option>
+          <option>Vídeo / comercial</option>
+          <option>Banner digital / site</option>
+          <option>E-mail marketing</option>
+        </select>
+      </div>
+      <div>
+        <label for="obs">Observações (opcional)</label>
+        <input type="text" id="obs" placeholder="Ex.: campanha de inverno, público jovem">
+      </div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn" id="btn-analisar"><span class="spinner" id="spinner"></span><span id="btn-txt">Analisar peça</span></button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <section id="resultado" class="hidden" aria-live="polite"></section>
+
+  <footer>
+    <img src="/assets/logo-vertical.png" alt="" width="91" height="72">
+    <p style="margin:0">Analista de Marca — protótipo desenvolvido para a disciplina de Inteligência Artificial. A análise é gerada por IA (Claude, da Anthropic) e pode conter imprecisões, especialmente na leitura exata de cores e fontes. Use como apoio, não como decisão final.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const LIMITE_PAYLOAD = 4_200_000; // caracteres (limite da hospedagem ~4,5 MB)
+  let arquivoManual = null;
+  let arquivoPeca = null;
+
+  // ---------- Interface ----------
+  document.querySelectorAll('input[name=manual]').forEach((r) => r.addEventListener('change', () => {
+    const v = document.querySelector('input[name=manual]:checked').value;
+    $('painel-exemplo').classList.toggle('hidden', v !== 'exemplo');
+    $('painel-pdf').classList.toggle('hidden', v !== 'pdf');
+    $('painel-texto').classList.toggle('hidden', v !== 'texto');
+  }));
+
+  function prepararDrop(zona, input, aoEscolher) {
+    input.addEventListener('change', () => input.files[0] && aoEscolher(input.files[0]));
+    ['dragenter', 'dragover'].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.remove('over'); }));
+    zona.addEventListener('drop', (e) => e.dataTransfer.files[0] && aoEscolher(e.dataTransfer.files[0]));
+  }
+  prepararDrop($('painel-pdf'), $('arq-manual'), (f) => {
+    arquivoManual = f; $('nome-manual').textContent = '📄 ' + f.name + ' (' + mb(f.size) + ')';
+  });
+  prepararDrop($('drop-peca'), $('arq-peca'), (f) => {
+    arquivoPeca = f; $('nome-peca').textContent = '📎 ' + f.name + ' (' + mb(f.size) + ')';
+    const pv = $('preview'); pv.innerHTML = '';
+    if (f.type.startsWith('image/')) {
+      const img = document.createElement('img'); img.src = URL.createObjectURL(f); img.alt = 'Prévia da peça'; pv.appendChild(img);
+    }
+  });
+
+  function mb(b) { return (b / 1048576).toFixed(1).replace('.', ',') + ' MB'; }
+  function erro(msg) { const e = $('erro'); e.textContent = msg; e.style.display = msg ? 'block' : 'none'; if (msg) e.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  function status(msg) { $('status').textContent = msg || ''; }
+
+  // ---------- Leitura e preparo dos arquivos ----------
+  function lerBase64(arquivo) {
+    return new Promise((ok, falha) => {
+      const r = new FileReader();
+      r.onload = () => ok(String(r.result).split(',')[1]);
+      r.onerror = () => falha(new Error('Não foi possível ler o arquivo.'));
+      r.readAsDataURL(arquivo);
+    });
+  }
+
+  function canvasParaJpeg(fonte, largura, altura, maxLado) {
+    const escala = Math.min(1, maxLado / Math.max(largura, altura));
+    const c = document.createElement('canvas');
+    c.width = Math.round(largura * escala); c.height = Math.round(altura * escala);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height); // fundo branco para PNG transparente
+    ctx.drawImage(fonte, 0, 0, c.width, c.height);
+    return { mediaType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.86).split(',')[1], preview: c.toDataURL('image/jpeg', 0.6) };
+  }
+
+  function prepararImagem(arquivo) {
+    return new Promise((ok, falha) => {
+      const img = new Image();
+      img.onload = () => {
+        const r = canvasParaJpeg(img, img.naturalWidth, img.naturalHeight, 1568);
+        ok({ tipo: 'imagem', imagens: [r], largura: img.naturalWidth, altura: img.naturalHeight });
+      };
+      img.onerror = () => falha(new Error('Imagem inválida ou formato não suportado.'));
+      img.src = URL.createObjectURL(arquivo);
+    });
+  }
+
+  function aguardarEvento(el, ev) { return new Promise((ok, falha) => { el.addEventListener(ev, ok, { once: true }); el.addEventListener('error', () => falha(new Error('Não foi possível abrir o vídeo. Tente um MP4 (H.264).')), { once: true }); }); }
+
+  async function prepararVideo(arquivo) {
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    v.src = URL.createObjectURL(arquivo);
+    await aguardarEvento(v, 'loadeddata');
+    const dur = v.duration;
+    if (!isFinite(dur) || dur <= 0) throw new Error('Não foi possível ler a duração do vídeo.');
+    const N = 6;
+    const tempos = Array.from({ length: N }, (_, i) => Math.min(dur - 0.05, (dur * (i + 0.5)) / N));
+    tempos[N - 1] = Math.max(0, dur - 0.3); // último quadro perto do fim (assinatura/logo)
+    const imagens = [];
+    for (const t of tempos) {
+      status('Extraindo quadros do vídeo… ' + (imagens.length + 1) + '/' + N);
+      const p = aguardarEvento(v, 'seeked'); v.currentTime = t; await p;
+      imagens.push(canvasParaJpeg(v, v.videoWidth, v.videoHeight, 1024));
+    }
+    $('preview').innerHTML = imagens.map((im) => '<img src="' + im.preview + '" alt="Quadro do vídeo">').join('');
+    return { tipo: 'video', imagens, tempos: tempos.map((t) => t.toFixed(1)), duracao: dur.toFixed(1), largura: v.videoWidth, altura: v.videoHeight };
+  }
+
+  async function prepararPeca() {
+    if (!arquivoPeca) throw new Error('Escolha a peça que será analisada (passo 2).');
+    const t = arquivoPeca.type;
+    if (t === 'application/pdf') {
+      if (arquivoPeca.size > 3 * 1048576) throw new Error('O PDF da peça passa de 3 MB. Exporte uma versão mais leve ou envie como imagem.');
+      return { tipo: 'pdf', data: await lerBase64(arquivoPeca) };
+    }
+    if (t.startsWith('video/')) return prepararVideo(arquivoPeca);
+    if (t.startsWith('image/')) return prepararImagem(arquivoPeca);
+    throw new Error('Formato de peça não suportado.');
+  }
+
+  async function prepararManual() {
+    const v = document.querySelector('input[name=manual]:checked').value;
+    if (v === 'exemplo') return { tipo: 'exemplo' };
+    if (v === 'texto') {
+      const texto = $('texto-manual').value.trim();
+      if (texto.length < 40) throw new Error('Cole as regras do manual (pelo menos algumas linhas).');
+      return { tipo: 'texto', texto };
+    }
+    if (!arquivoManual) throw new Error('Escolha o PDF do manual de marca (passo 1).');
+    if (arquivoManual.size > 3 * 1048576) throw new Error('O PDF do manual passa de 3 MB. Comprima o arquivo, envie só as páginas principais ou cole as regras como texto.');
+    return { tipo: 'pdf', data: await lerBase64(arquivoManual) };
+  }
+
+  // ---------- Análise ----------
+  $('btn-analisar').addEventListener('click', async () => {
+    erro('');
+    const btn = $('btn-analisar');
+    try {
+      btn.disabled = true; $('spinner').style.display = 'inline-block'; $('btn-txt').textContent = 'Analisando…';
+      const manual = await prepararManual();
+      const peca = await prepararPeca();
+      (peca.imagens || []).forEach((im) => delete im.preview);
+      const payload = JSON.stringify({ manual, peca, contexto: { canal: $('canal').value, observacoes: $('obs').value } });
+      if (payload.length > LIMITE_PAYLOAD) throw new Error('Os arquivos somados ficaram grandes demais (máx. ~4 MB). Use um manual menor ou cole as regras como texto.');
+      status('A IA está lendo o manual e analisando a peça. Isso leva de 20 a 60 segundos…');
+      const resp = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
+      let dados;
+      try { dados = await resp.json(); } catch (_) { throw new Error(resp.status === 413 ? 'Arquivos grandes demais para enviar.' : 'O servidor não respondeu corretamente (código ' + resp.status + ').'); }
+      if (!resp.ok) throw new Error(dados.erro || 'Erro na análise.');
+      renderizar(dados.relatorio, dados.modelo);
+      status('');
+    } catch (e) {
+      erro(e.message); status('');
+    } finally {
+      btn.disabled = false; $('spinner').style.display = 'none'; $('btn-txt').textContent = 'Analisar peça';
+    }
+  });
+
+  // ---------- Relatório ----------
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  const corVeredito = { 'Aprovada': 'var(--ok)', 'Aprovada com ajustes': 'var(--warn)', 'Reprovada': 'var(--bad)' };
+  const corStatus = { 'conforme': ['#E3F4EA', 'var(--ok)'], 'parcial': ['#FBF1D9', '#8A6000'], 'não conforme': ['#FBE3E1', 'var(--bad)'], 'não avaliável': ['#E6ECF3', 'var(--muted)'] };
+  const corGrav = { 'alta': 'var(--bad)', 'média': 'var(--warn)', 'baixa': '#7F99B0' };
+  function corNota(n10) { return n10 >= 8.5 ? 'var(--ok)' : n10 >= 6.5 ? 'var(--warn)' : 'var(--bad)'; }
+
+  function renderizar(r, modelo) {
+    const nota = Math.max(0, Math.min(100, Number(r.nota_geral) || 0));
+    const ordem = { 'alta': 0, 'média': 1, 'baixa': 2 };
+    const problemas = (r.problemas || []).slice().sort((a, b) => (ordem[a.gravidade] ?? 3) - (ordem[b.gravidade] ?? 3));
+    const html = `
+      <div class="card">
+        <div class="res-head">
+          <div class="score" style="--p:${nota};--c:${corNota(nota / 10)}"><div class="score-inner"><div><div class="score-num">${nota}</div><div class="score-lbl">de 100</div></div></div></div>
+          <div>
+            <span class="badge" style="background:${corVeredito[r.veredito] || 'var(--muted)'}">${esc(r.veredito)}</span>
+            <h2>${esc(r.resumo)}</h2>
+            <div class="meta">${esc(r.marca_identificada)} · ${esc(r.tipo_de_peca)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="card"><p class="section-title">O que a IA viu</p><p style="margin:0">${esc(r.descricao_da_peca)}</p></div>
+      <div class="card">
+        <p class="section-title">Critérios</p>
+        ${(r.criterios || []).map((c) => {
+          const [bg, fg] = corStatus[c.status] || corStatus['não avaliável'];
+          const na = c.status === 'não avaliável';
+          return `<div class="crit">
+            <div class="crit-name">${esc(c.nome)} <small>peso ${esc(c.peso)}%</small> <span class="pill" style="background:${bg};color:${fg}">${esc(c.status)}</span></div>
+            <div class="crit-score">${na ? '—' : esc(c.nota)}<small style="font-size:14px;color:var(--muted)">${na ? '' : '/10'}</small></div>
+            ${na ? '' : `<div class="bar"><i style="width:${(Number(c.nota) || 0) * 10}%;background:${corNota(c.nota)}"></i></div>`}
+            <div class="crit-obs">${esc(c.observacao)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="card">
+        <p class="section-title">Problemas encontrados (${problemas.length})</p>
+        ${problemas.length ? problemas.map((p) => `
+          <div class="prob" style="--c:${corGrav[p.gravidade] || '#7F99B0'}">
+            <h4><span class="pill" style="background:${corGrav[p.gravidade] || '#7F99B0'};color:#fff">${esc(p.gravidade)}</span> ${esc(p.descricao)}</h4>
+            <p><span class="lbl">Onde:</span> ${esc(p.onde)}</p>
+            <p><span class="lbl">Regra do manual:</span> ${esc(p.regra_do_manual)}</p>
+            <p><span class="lbl">Como corrigir:</span> ${esc(p.como_corrigir)}</p>
+          </div>`).join('') : '<p style="margin:0">Nenhum problema encontrado. 🎉</p>'}
+      </div>
+      ${(r.pontos_fortes || []).length ? `<div class="card"><p class="section-title">Pontos fortes</p><ul class="fortes">${r.pontos_fortes.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div>` : ''}
+      <div class="card"><p class="section-title">Limitações desta análise</p><p style="margin:0">${esc(r.limitacoes)}</p><p class="meta" style="margin:10px 0 0">Modelo: ${esc(modelo)}</p></div>
+    `;
+    const sec = $('resultado'); sec.innerHTML = html; sec.classList.remove('hidden');
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+})();
+</script>
+</body>
+</html>

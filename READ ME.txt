@@ -1,0 +1,141 @@
+ANALISTA DE MARCA
+Plataforma de análise de conformidade de marca com Inteligência Artificial
+Trabalho individual — Disciplina de Inteligência Artificial
+
+Link da solução: [COLAR AQUI O LINK DA VERCEL]
+(funciona sem login nem cadastro)
+
+======================================================================
+1. QUAL PROBLEMA É ATACADO?
+======================================================================
+
+Empresas investem em manuais de marca (brand books) que definem como o
+logotipo, as cores, a tipografia, as imagens e o tom de voz devem ser usados.
+Na prática, porém, as peças de comunicação são produzidas por muitas pessoas
+diferentes (agências, freelancers, equipes internas, franqueados) e em grande
+volume (posts, stories, anúncios impressos, vídeos). A conferência dessas peças
+é manual, lenta, depende de um especialista e costuma falhar: logos distorcidos,
+cores fora da paleta, fontes erradas e textos fora do tom de voz chegam ao
+público e enfraquecem a identidade da marca.
+
+======================================================================
+2. QUAL FOI A MINHA IDEIA?
+======================================================================
+
+Criar o Analista de Marca: um site em que qualquer pessoa envia o manual de marca e
+uma peça de comunicação, e um agente de IA com visão computacional faz a
+auditoria da peça como um analista de branding faria. O resultado é um parecer
+com nota de 0 a 100, veredito (Aprovada / Aprovada com ajustes / Reprovada),
+avaliação por critério, lista de problemas com a regra do manual que foi
+violada e a sugestão de correção.
+
+======================================================================
+3. LÓGICA DE FUNCIONAMENTO
+======================================================================
+
+Passo 1 — O usuário escolhe o manual de marca:
+          (a) o manual de exemplo da marca fictícia Aurora Café,
+          (b) o PDF de um manual real, ou
+          (c) as regras coladas como texto.
+Passo 2 — O usuário envia a peça: imagem (JPG/PNG/WebP), PDF ou vídeo curto.
+          Opcionalmente informa o canal (feed, stories, impresso, vídeo...).
+Passo 3 — O navegador prepara os arquivos: reduz o tamanho das imagens e, no
+          caso de vídeo, extrai automaticamente 6 quadros distribuídos ao longo
+          do vídeo (o último quadro perto do fim, onde costuma estar a
+          assinatura com o logo).
+Passo 4 — O servidor monta a requisição para o modelo de IA com:
+          - a SKILL "analista-de-marca" (instruções do analista) como prompt de sistema;
+          - o manual de marca (fonte da verdade);
+          - a peça (imagens/PDF) e o contexto informado.
+Passo 5 — O modelo compara a peça com o manual critério por critério e é
+          obrigado a responder por meio de uma ferramenta (tool) com formato
+          JSON fixo, o que garante um relatório sempre estruturado.
+Passo 6 — O site exibe o relatório: nota, veredito, critérios, problemas
+          ordenados por gravidade, pontos fortes e limitações da análise.
+
+======================================================================
+4. CONSTRUÇÃO TÉCNICA
+======================================================================
+
+Modelo de IA:
+  Claude (Anthropic), modelo multimodal (lê texto, imagens e PDF), acessado
+  pela API de Mensagens. Modelo usado: claude-sonnet-5-5.
+
+Agente e Skill:
+  O agente "Analista de Marca" é definido pela skill em
+  skills/analista-de-marca/SKILL.md. Ela estabelece:
+  - o papel (analista sênior de branding);
+  - o processo de análise em 6 etapas;
+  - 7 critérios com pesos: Logotipo (20%), Cores (20%), Tipografia (15%),
+    Layout e composição (15%), Imagem e fotografia (10%), Tom de voz e
+    texto (15%), Requisitos do canal (5%);
+  - a rubrica de notas, status e gravidade dos problemas;
+  - regras de conduta (o manual é a fonte da verdade, citar a regra violada,
+    declarar incertezas sobre cores e fontes, não inventar elementos).
+
+Saída estruturada (tool use / function calling):
+  A API recebe uma ferramenta chamada "registrar_analise" com um esquema JSON
+  (nota_geral, veredito, criterios[], problemas[], pontos_fortes[],
+  limitacoes...). Com tool_choice forçado, o modelo sempre devolve o
+  relatório nesse formato, que o site transforma em interface visual.
+
+Algoritmo de nota:
+  Nota geral = média ponderada das notas dos critérios (0–10) × 10,
+  desconsiderando critérios "não avaliáveis" e redistribuindo seus pesos.
+  Veredito: >= 85 e sem problema grave = Aprovada; 65–84 = Aprovada com
+  ajustes; < 65 = Reprovada.
+
+Tratamento de vídeo:
+  Feito no navegador com os elementos <video> e <canvas>: o vídeo é
+  "fatiado" em 6 quadros, que são enviados como imagens em sequência.
+  O áudio não é analisado (limitação declarada no relatório).
+
+Arquitetura e hospedagem:
+  - Front-end: uma página HTML/CSS/JavaScript (index.html), sem frameworks.
+  - Back-end: uma função serverless em Node.js (api/analyze.js) hospedada
+    na Vercel. Ela guarda a chave da API em variável de ambiente, para que
+    a chave nunca fique exposta no navegador.
+  - Não há banco de dados nem login: nenhum arquivo enviado é armazenado.
+
+Base de dados:
+  dados/manual-exemplo-aurora-cafe.md — manual de marca completo de uma
+  marca fictícia (logo, paleta com HEX/RGB/CMYK, tipografia, fotografia,
+  tom de voz, layout, regras por canal e checklist), usado para
+  demonstração e testes.
+
+======================================================================
+5. RESULTADO FINAL ESPERADO
+======================================================================
+
+Uma ferramenta web pública que, em menos de um minuto, entrega um parecer
+de conformidade de marca fundamentado no manual da empresa. Ela não substitui
+o designer ou o gestor de marca, mas funciona como uma primeira triagem
+automática, reduzindo retrabalho e evitando que peças fora do padrão sejam
+publicadas.
+
+Teste sugerido (com o manual de exemplo selecionado):
+  - exemplos/peca-teste-1-conforme.jpg  -> deve ser aprovada (com ou sem ajustes)
+  - exemplos/peca-teste-2-com-erros.jpg -> deve ser reprovada, apontando logo
+    laranja/distorcido/girado, cores neon e gradiente, fonte condensada,
+    caixa alta, promessas absolutas, dois CTAs e falta de margens.
+
+Limitações conhecidas:
+  - Cores lidas a partir de imagens são aproximadas.
+  - A identificação exata de fontes por imagem nem sempre é possível.
+  - Em vídeos, só alguns quadros são analisados e o áudio não é avaliado.
+  - Arquivos enviados têm limite de cerca de 4 MB no total.
+  - Como toda IA generativa, pode cometer erros: deve ser usada como apoio.
+
+======================================================================
+6. ARQUIVOS ENTREGUES
+======================================================================
+
+READ ME.txt                              este documento
+index.html                               página do site (interface)
+api/analyze.js                           função que chama a IA
+vercel.json                              configuração da hospedagem
+skills/analista-de-marca/SKILL.md            skill / instruções do agente
+dados/manual-exemplo-aurora-cafe.md      base de dados: manual de exemplo
+exemplos/peca-teste-1-conforme.jpg       peça de teste que segue o manual
+exemplos/peca-teste-2-com-erros.jpg      peça de teste com erros propositais
+exemplos/index.html                      página para baixar as peças de teste
