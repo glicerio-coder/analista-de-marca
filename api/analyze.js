@@ -12,7 +12,9 @@ function lerArquivo(relativo) {
   return fs.readFileSync(path.join(process.cwd(), relativo), 'utf8');
 }
 
-// Ferramenta que obriga a IA a responder num formato estruturado (JSON)
+// Ferramenta que a IA usa para entregar o relatório num formato estruturado (JSON).
+// Os modelos Claude mais novos não aceitam "forçar" uma ferramenta (tool_choice tipo "tool"),
+// então usamos tool_choice "auto" e a instrução do prompt pede que ela seja usada.
 const FERRAMENTA_RELATORIO = {
   name: 'registrar_analise',
   description: 'Registra o relatório final de conformidade da peça com o manual de marca.',
@@ -124,7 +126,7 @@ module.exports = async function handler(req, res) {
 
     conteudo.push({
       type: 'text',
-      text: 'Analise a peça seguindo rigorosamente a skill Analista de Marca e registre o resultado com a ferramenta registrar_analise.'
+      text: 'Analise a peça seguindo rigorosamente a skill Analista de Marca. Ao terminar, chame a ferramenta registrar_analise uma única vez com o relatório completo. Não escreva o relatório em texto: ele deve ir somente na ferramenta.'
     });
 
     const resposta = await fetch('https://api.anthropic.com/v1/messages', {
@@ -136,10 +138,11 @@ module.exports = async function handler(req, res) {
       },
       body: JSON.stringify({
         model: MODELO,
-        max_tokens: 4096,
+        max_tokens: 16000,
         system: skill,
         tools: [FERRAMENTA_RELATORIO],
-        tool_choice: { type: 'tool', name: 'registrar_analise' },
+        tool_choice: { type: 'auto', disable_parallel_tool_use: true },
+        output_config: { effort: 'medium' },
         messages: [{ role: 'user', content: conteudo }]
       })
     });
@@ -150,7 +153,14 @@ module.exports = async function handler(req, res) {
       return res.status(502).json({ erro: msg });
     }
 
-    const bloco = (dados.content || []).find((b) => b.type === 'tool_use');
+    if (dados.stop_reason === 'refusal') {
+      return res.status(502).json({ erro: 'A IA recusou analisar este conteúdo. Tente com outra peça.' });
+    }
+    if (dados.stop_reason === 'max_tokens') {
+      return res.status(502).json({ erro: 'A resposta da IA ficou longa demais e foi cortada. Tente novamente.' });
+    }
+
+    const bloco = (dados.content || []).find((b) => b.type === 'tool_use' && b.name === 'registrar_analise');
     if (!bloco) {
       return res.status(502).json({ erro: 'A IA não retornou o relatório no formato esperado. Tente novamente.' });
     }
