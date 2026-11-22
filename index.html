@@ -56,7 +56,27 @@
   .step-title { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; font-size: 18px; font-weight: 600; }
   .step-num { font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; color: #fff; background: var(--grad); width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; flex: none; align-self: center; }
   .hint { color: var(--muted); font-size: 13.5px; margin: 0 0 16px; }
-  .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+  .cli-box { border: 1px solid var(--line); border-radius: 12px; padding: 18px; background: var(--soft); }
+  .cli-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .cli-tab { border: 1.5px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 13.5px; font-weight: 500; padding: 7px 14px; border-radius: 99px; cursor: pointer; }
+  .cli-tab[aria-selected=true] { border-color: var(--accent); background: #F1F5FF; color: var(--accent); }
+  .cli-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .cli-grid label, .cli-campo > label { font-size: 13px; font-weight: 500; display: block; margin-bottom: 6px; }
+  .cli-campo { margin-bottom: 12px; }
+  .cli-fonte { display: flex; gap: 16px; font-size: 13.5px; margin-bottom: 10px; }
+  .cli-fonte label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .cli-ok { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .cli-ok strong { font-size: 15px; }
+  .cli-ok .meta { flex-basis: 100%; }
+  .cli-acoes { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .cli-msg { font-size: 13.5px; color: var(--bad); }
+  .btn-sec { border: 1.5px solid var(--accent); background: #fff; color: var(--accent); font: inherit; font-weight: 600; font-size: 14px; padding: 9px 18px; border-radius: 99px; cursor: pointer; }
+  .btn-sec:hover { background: #F1F5FF; }
+  .btn-sec:disabled { opacity: .5; cursor: progress; }
+  .link-btn { border: 0; background: none; color: var(--accent); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; padding: 0; text-decoration: underline; }
+  #cli-conectado:not(.hidden) + #cli-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .nota { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
   .opt { position: relative; }
   .opt input { position: absolute; opacity: 0; }
   .opt label {
@@ -74,7 +94,7 @@
   .drop strong { color: var(--ink); }
   .drop input { display: none; }
   .file-name { margin-top: 10px; font-size: 13.5px; font-weight: 500; }
-  textarea, select, input[type=text] {
+  textarea, select, input[type=text], input[type=password] {
     width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px;
     font: inherit; background: #fff; color: var(--ink);
   }
@@ -132,9 +152,11 @@
   ul.fortes li { margin-bottom: 6px; }
   footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 13px; display: flex; gap: 24px; align-items: center; }
   footer img { height: 72px; width: auto; flex: none; }
-  @media (max-width: 720px) { footer { flex-direction: column; align-items: flex-start; } }
+  @media (max-width:720px) { footer { flex-direction: column; align-items: flex-start; } }
+  @media (max-width: 900px) and (min-width: 721px) { .options { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 720px) {
     .options { grid-template-columns: 1fr; }
+    .cli-grid { grid-template-columns: 1fr; }
     .row { grid-template-columns: 1fr; }
     .res-head { grid-template-columns: 1fr; justify-items: start; }
     .logo img { height: 32px; }
@@ -159,11 +181,12 @@
 
   <section class="card">
     <h3 class="step-title"><span class="step-num">1</span> Manual de marca</h3>
-    <p class="hint">O manual é a régua da análise. Use o exemplo para testar rápido ou envie o seu.</p>
+    <p class="hint">O manual é a régua da análise. Use o exemplo para testar rápido, envie o seu ou use o manual salvo de um cliente cadastrado.</p>
     <div class="options" role="radiogroup" aria-label="Origem do manual">
       <div class="opt"><input type="radio" name="manual" id="m-exemplo" value="exemplo" checked><label for="m-exemplo">Manual de exemplo<small>Aurora Café (marca fictícia)</small></label></div>
       <div class="opt"><input type="radio" name="manual" id="m-pdf" value="pdf"><label for="m-pdf">Enviar PDF<small>até 3 MB</small></label></div>
       <div class="opt"><input type="radio" name="manual" id="m-texto" value="texto"><label for="m-texto">Colar regras<small>texto livre</small></label></div>
+      <div class="opt"><input type="radio" name="manual" id="m-cliente" value="cliente"><label for="m-cliente">Cliente cadastrado<small>manual salvo</small></label></div>
     </div>
     <div id="painel-exemplo" class="demo-box">
       Vamos usar o manual da <strong>Aurora Café</strong>: paleta Café Torrado #3B2416, Creme #F4E9D8 e Laranja Aurora #E8772E; títulos em Fraunces e textos em Inter; tom acolhedor, máx. 2 emojis. <a href="/dados/manual-exemplo-aurora-cafe.md" target="_blank" rel="noopener">Ver manual completo</a> · <a href="/exemplos/" target="_blank" rel="noopener">Baixar peças de teste</a>
@@ -175,6 +198,47 @@
     </label>
     <div id="painel-texto" class="hidden">
       <textarea id="texto-manual" placeholder="Cole aqui as regras do manual: cores (com códigos), fontes, regras do logo, tom de voz, proibições..."></textarea>
+    </div>
+    <div id="painel-cliente" class="cli-box hidden">
+      <div id="cli-conectado" class="hidden">
+        <div class="cli-ok">
+          <span aria-hidden="true">✅</span><strong id="cli-nome-ok"></strong>
+          <span class="meta" id="cli-manual-ok"></span>
+        </div>
+        <div class="cli-acoes" style="margin-top:12px">
+          <button type="button" class="link-btn" id="cli-trocar">Atualizar o manual</button>
+          <button type="button" class="link-btn" id="cli-sair">Sair</button>
+        </div>
+      </div>
+      <div id="cli-form">
+        <div class="cli-tabs" role="tablist" id="cli-tabs">
+          <button type="button" class="cli-tab" role="tab" id="tab-entrar" aria-selected="true">Entrar</button>
+          <button type="button" class="cli-tab" role="tab" id="tab-cadastrar" aria-selected="false">Novo cliente</button>
+        </div>
+        <div class="cli-grid" id="cli-credenciais">
+          <div><label for="cli-nome">Nome do cliente</label><input type="text" id="cli-nome" autocomplete="organization" placeholder="Ex.: Aurora Café"></div>
+          <div><label for="cli-senha">Senha</label><input type="password" id="cli-senha" autocomplete="current-password" placeholder="mínimo 6 caracteres"></div>
+        </div>
+        <div id="cli-area-manual" class="cli-campo hidden">
+          <label>Manual de marca do cliente</label>
+          <div class="cli-fonte">
+            <label><input type="radio" name="cli-fonte" value="pdf" checked> PDF (até 3 MB)</label>
+            <label><input type="radio" name="cli-fonte" value="texto"> Colar regras</label>
+          </div>
+          <label class="drop" id="cli-drop">
+            <input type="file" id="cli-arq" accept="application/pdf">
+            <strong>Clique para escolher</strong> ou arraste o PDF do manual aqui
+            <div class="file-name" id="cli-arq-nome"></div>
+          </label>
+          <textarea id="cli-texto" class="hidden" placeholder="Cole aqui as regras do manual do cliente..."></textarea>
+        </div>
+        <div class="cli-acoes">
+          <button type="button" class="btn-sec" id="cli-enviar">Entrar</button>
+          <button type="button" class="link-btn hidden" id="cli-cancelar">Cancelar</button>
+          <span class="cli-msg" id="cli-msg" role="alert"></span>
+        </div>
+        <p class="nota" id="cli-nota">O manual fica num armazenamento privado e só pode ser usado com o nome e a senha do cliente. A senha não é guardada, apenas uma versão protegida dela.</p>
+      </div>
     </div>
   </section>
 
@@ -234,6 +298,7 @@
     $('painel-exemplo').classList.toggle('hidden', v !== 'exemplo');
     $('painel-pdf').classList.toggle('hidden', v !== 'pdf');
     $('painel-texto').classList.toggle('hidden', v !== 'texto');
+    $('painel-cliente').classList.toggle('hidden', v !== 'cliente');
   }));
 
   function prepararDrop(zona, input, aoEscolher) {
@@ -326,6 +391,10 @@
   async function prepararManual() {
     const v = document.querySelector('input[name=manual]:checked').value;
     if (v === 'exemplo') return { tipo: 'exemplo' };
+    if (v === 'cliente') {
+      if (!cliente) throw new Error('Entre com o nome e a senha do cliente, ou cadastre um novo cliente (passo 1).');
+      return { tipo: 'cliente', cliente: cliente.nome, senha: cliente.senha };
+    }
     if (v === 'texto') {
       const texto = $('texto-manual').value.trim();
       if (texto.length < 40) throw new Error('Cole as regras do manual (pelo menos algumas linhas).');
@@ -335,6 +404,90 @@
     if (arquivoManual.size > 3 * 1048576) throw new Error('O PDF do manual passa de 3 MB. Comprima o arquivo, envie só as páginas principais ou cole as regras como texto.');
     return { tipo: 'pdf', data: await lerBase64(arquivoManual) };
   }
+
+  // ---------- Clientes cadastrados ----------
+  let cliente = null;          // { nome, senha, manual } enquanto a página estiver aberta
+  let cliModo = 'entrar';      // 'entrar' | 'cadastrar' | 'atualizar'
+  let cliArquivo = null;
+  const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+  const lembrar = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+
+  function cliMsg(m) { $('cli-msg').textContent = m || ''; }
+  function cliFonte() { return document.querySelector('input[name=cli-fonte]:checked').value; }
+  document.querySelectorAll('input[name=cli-fonte]').forEach((r) => r.addEventListener('change', () => {
+    $('cli-drop').classList.toggle('hidden', cliFonte() !== 'pdf');
+    $('cli-texto').classList.toggle('hidden', cliFonte() !== 'texto');
+  }));
+  prepararDrop($('cli-drop'), $('cli-arq'), (f) => { cliArquivo = f; $('cli-arq-nome').textContent = '📄 ' + f.name + ' (' + mb(f.size) + ')'; });
+
+  // Mostra a parte certa do painel conforme o modo e se há cliente conectado
+  function cliAtualizarTela() {
+    const atualizando = cliModo === 'atualizar';
+    $('cli-conectado').classList.toggle('hidden', !cliente);
+    $('cli-form').classList.toggle('hidden', !!cliente && !atualizando);
+    $('cli-tabs').classList.toggle('hidden', atualizando);
+    $('cli-credenciais').classList.toggle('hidden', atualizando);
+    $('cli-nota').classList.toggle('hidden', atualizando);
+    $('cli-cancelar').classList.toggle('hidden', !atualizando);
+    $('cli-trocar').classList.toggle('hidden', atualizando);
+    $('cli-area-manual').classList.toggle('hidden', cliModo === 'entrar');
+    $('tab-entrar').setAttribute('aria-selected', String(cliModo === 'entrar'));
+    $('tab-cadastrar').setAttribute('aria-selected', String(cliModo === 'cadastrar'));
+    $('cli-enviar').textContent = { entrar: 'Entrar', cadastrar: 'Cadastrar cliente', atualizar: 'Salvar novo manual' }[cliModo];
+    $('cli-senha').autocomplete = cliModo === 'cadastrar' ? 'new-password' : 'current-password';
+    if (cliente) {
+      const m = cliente.manual || {};
+      const quando = m.atualizadoEm ? new Date(m.atualizadoEm).toLocaleDateString('pt-BR') : '';
+      $('cli-nome-ok').textContent = cliente.nome;
+      $('cli-manual-ok').textContent = 'Manual salvo: ' + (m.nomeArquivo || '') + (quando ? ' · atualizado em ' + quando : '');
+    }
+  }
+  function cliModoNovo(modo) { cliModo = modo; cliMsg(''); cliAtualizarTela(); }
+  $('tab-entrar').addEventListener('click', () => cliModoNovo('entrar'));
+  $('tab-cadastrar').addEventListener('click', () => cliModoNovo('cadastrar'));
+  $('cli-trocar').addEventListener('click', () => cliModoNovo('atualizar'));
+  $('cli-cancelar').addEventListener('click', () => cliModoNovo('entrar'));
+  $('cli-sair').addEventListener('click', () => { cliente = null; $('cli-senha').value = ''; cliModoNovo('entrar'); });
+
+  async function cliManualDoFormulario() {
+    if (cliFonte() === 'texto') {
+      const texto = $('cli-texto').value.trim();
+      if (texto.length < 40) throw new Error('Cole as regras do manual (pelo menos algumas linhas).');
+      return { tipo: 'texto', texto };
+    }
+    if (!cliArquivo) throw new Error('Escolha o PDF do manual do cliente.');
+    if (cliArquivo.type !== 'application/pdf') throw new Error('O manual precisa ser um arquivo PDF.');
+    if (cliArquivo.size > 3 * 1048576) throw new Error('O PDF do manual passa de 3 MB. Comprima o arquivo ou cole as regras como texto.');
+    return { tipo: 'pdf', data: await lerBase64(cliArquivo), nomeArquivo: cliArquivo.name };
+  }
+
+  $('cli-enviar').addEventListener('click', async () => {
+    cliMsg('');
+    const btn = $('cli-enviar'); const rotulo = btn.textContent;
+    try {
+      const nome = cliModo === 'atualizar' ? cliente.nome : $('cli-nome').value.trim();
+      const senha = cliModo === 'atualizar' ? cliente.senha : $('cli-senha').value;
+      if (!nome) throw new Error('Informe o nome do cliente.');
+      if (senha.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.');
+      const corpo = { acao: cliModo, nome, senha };
+      if (cliModo !== 'entrar') corpo.manual = await cliManualDoFormulario();
+      btn.disabled = true; btn.textContent = cliModo === 'entrar' ? 'Entrando…' : 'Salvando…';
+      const resp = await fetch('/api/clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+      let dados;
+      try { dados = await resp.json(); } catch (_) { throw new Error(resp.status === 413 ? 'Arquivo grande demais para enviar.' : 'O servidor não respondeu corretamente (código ' + resp.status + ').'); }
+      if (!resp.ok) throw new Error(dados.erro || 'Não foi possível concluir.');
+      cliente = { nome: dados.cliente.nome, senha, manual: dados.cliente.manual };
+      guardar('am-cliente', cliente.nome);
+      cliArquivo = null; $('cli-arq').value = ''; $('cli-arq-nome').textContent = ''; $('cli-texto').value = '';
+      cliModoNovo('entrar');
+    } catch (e) {
+      cliMsg(e.message);
+    } finally {
+      btn.disabled = false; if (btn.textContent.endsWith('…')) btn.textContent = rotulo;
+    }
+  });
+  const ultimo = lembrar('am-cliente');
+  if (ultimo) $('cli-nome').value = ultimo;
 
   // ---------- Análise ----------
   $('btn-analisar').addEventListener('click', async () => {

@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const clientes = require('../lib/clientes');
 
 const MODELO = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
 const MAX_IMAGENS = 8;
@@ -96,6 +97,11 @@ module.exports = async function handler(req, res) {
       conteudo.push({ type: 'text', text: String(manual.texto).slice(0, 60000) });
     } else if (manual.tipo === 'pdf' && manual.data) {
       conteudo.push(blocoPdf(manual.data));
+    } else if (manual.tipo === 'cliente') {
+      // Manual salvo no cadastro do cliente (Vercel Blob)
+      const salvo = await clientes.carregarManual(manual.cliente, manual.senha);
+      conteudo.push({ type: 'text', text: `Cliente cadastrado: ${salvo.nome}.` });
+      conteudo.push(salvo.tipo === 'pdf' ? blocoPdf(salvo.data) : { type: 'text', text: salvo.texto });
     } else {
       return res.status(400).json({ erro: 'Manual de marca inválido.' });
     }
@@ -166,6 +172,7 @@ module.exports = async function handler(req, res) {
     }
     return res.status(200).json({ relatorio: bloco.input, modelo: MODELO });
   } catch (e) {
+    if (e instanceof clientes.ErroCliente) return res.status(e.status).json({ erro: e.message });
     return res.status(500).json({ erro: 'Erro interno: ' + e.message });
   }
 };
