@@ -80,15 +80,6 @@
   .cli-regras { margin-top: 12px; font-size: 13.5px; }
   .cli-regras summary { cursor: pointer; color: var(--accent); font-weight: 500; }
   #cli-regras-texto { margin-top: 10px; max-height: 340px; overflow: auto; white-space: pre-wrap; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.5; }
-  .logos-prev { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .logos-prev img { height: 56px; max-width: 180px; object-fit: contain; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
-  .extracao { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
-  .candidatos { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
-  .candidato { border: 1.5px solid var(--line); border-radius: 10px; padding: 8px; background: #fff; cursor: pointer; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--muted); }
-  .candidato img { height: 90px; max-width: 280px; object-fit: contain; display: block; }
-  .candidato:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-  .logo-ref { margin-top: 12px; }
-  .logo-ref-tit { font-size: 12.5px; font-weight: 600; color: var(--muted); }
   .nota { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
   .opt { position: relative; }
   .opt input { position: absolute; opacity: 0; }
@@ -222,21 +213,10 @@
           <summary>Ver as regras da marca que a IA vai usar</summary>
           <div id="cli-regras-texto"></div>
         </details>
-        <div class="logo-ref" id="cli-logo-ref">
-          <span class="logo-ref-tit">Logo oficial usado na comparação</span>
-          <div class="logos-prev" id="cli-logos-salvos"></div>
-          <p class="cli-status" id="ext-status" aria-live="polite" style="margin:6px 0 0"></p>
-          <span class="cli-msg" id="ext-msg" role="alert"></span>
-          <label class="drop hidden" id="ext-drop" style="margin-top:10px">
-            <input type="file" id="ext-arq" accept="application/pdf">
-            <strong>Escolha o PDF do manual</strong> no seu computador (o mesmo que foi cadastrado) para o site ler o logo
-          </label>
-        </div>
         <div class="cli-acoes" style="margin-top:12px">
           <button type="button" class="link-btn" id="cli-trocar">Atualizar o manual</button>
           <button type="button" class="link-btn" id="cli-sair">Sair</button>
         </div>
-        <p class="nota" id="cli-corrigir">O logo errado? <button type="button" class="link-btn" id="cli-btn-extrair" style="font-size:12.5px">ler de novo do manual</button> ou <button type="button" class="link-btn" id="cli-btn-logos" style="font-size:12.5px">enviar o arquivo do logo</button>.</p>
       </div>
       <div id="cli-form">
         <div class="cli-tabs" role="tablist" id="cli-tabs">
@@ -259,16 +239,6 @@
             <div class="file-name" id="cli-arq-nome"></div>
           </label>
           <textarea id="cli-texto" class="hidden" placeholder="Cole aqui as regras do manual do cliente..."></textarea>
-        </div>
-        <div id="cli-area-logos" class="cli-campo hidden">
-          <label>Logos oficiais <span style="font-weight:400;color:var(--muted)">(PNG, JPG ou SVG · até 4 · recomendado)</span></label>
-          <label class="drop" id="cli-logos-drop">
-            <input type="file" id="cli-logos-arq" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple>
-            <strong>Clique para escolher</strong> ou arraste as versões aprovadas do logo
-            <div class="file-name" id="cli-logos-nome"></div>
-          </label>
-          <div class="logos-prev" id="cli-logos-prev"></div>
-          <p class="nota">A IA compara o desenho das letras e do símbolo da peça com estas imagens. Use os arquivos oficiais (de preferência PNG com fundo transparente).</p>
         </div>
         <div class="cli-acoes">
           <button type="button" class="btn-sec" id="cli-enviar">Entrar</button>
@@ -476,7 +446,7 @@
 
   // Mostra a parte certa do painel conforme o modo e se há cliente conectado
   function cliAtualizarTela() {
-    const atualizando = cliModo === 'atualizar' || cliModo === 'logos'; // cliente conectado editando algo
+    const atualizando = cliModo === 'atualizar'; // cliente conectado trocando o manual
     $('cli-conectado').classList.toggle('hidden', !cliente);
     $('cli-form').classList.toggle('hidden', !!cliente && !atualizando);
     $('cli-tabs').classList.toggle('hidden', atualizando);
@@ -484,12 +454,10 @@
     $('cli-nota').classList.toggle('hidden', atualizando);
     $('cli-cancelar').classList.toggle('hidden', !atualizando);
     $('cli-trocar').classList.toggle('hidden', atualizando);
-    $('cli-corrigir').classList.toggle('hidden', atualizando);
     $('cli-area-manual').classList.toggle('hidden', !(cliModo === 'cadastrar' || cliModo === 'atualizar'));
-    $('cli-area-logos').classList.toggle('hidden', !(cliModo === 'cadastrar' || cliModo === 'logos'));
     $('tab-entrar').setAttribute('aria-selected', String(cliModo === 'entrar'));
     $('tab-cadastrar').setAttribute('aria-selected', String(cliModo === 'cadastrar'));
-    $('cli-enviar').textContent = { entrar: 'Entrar', cadastrar: 'Cadastrar cliente', atualizar: 'Salvar novo manual', logos: 'Salvar logos' }[cliModo];
+    $('cli-enviar').textContent = { entrar: 'Entrar', cadastrar: 'Cadastrar cliente', atualizar: 'Salvar novo manual' }[cliModo];
     $('cli-senha').autocomplete = cliModo === 'cadastrar' ? 'new-password' : 'current-password';
     if (cliente) {
       const m = cliente.manual || {};
@@ -498,28 +466,22 @@
       $('cli-manual-ok').textContent = 'Manual salvo: ' + (m.nomeArquivo || '') + (m.tamanho ? ' (' + mb(m.tamanho) + ')' : '') + (quando ? ' · atualizado em ' + quando : '');
       $('cli-regras-texto').textContent = cliente.regras || '';
       $('cli-regras').classList.toggle('hidden', !cliente.regras);
-      const salvos = cliente.logos || [];
-      $('cli-logos-salvos').innerHTML = salvos.map((l) => `<img src="data:image/jpeg;base64,${l.data}" alt="Logo oficial ${esc(l.nome || '')}" title="${esc(l.nome || '')}">`).join('');
-      $('cli-btn-extrair').classList.toggle('hidden', !(cliente.manual && cliente.manual.origem === 'pdf'));
-      if (!salvos.length && !logoEmAndamento) extStatus(cliente.manual && cliente.manual.origem === 'pdf'
-        ? 'O logo oficial será lido do manual automaticamente.'
-        : 'Este cliente tem as regras em texto: envie o arquivo do logo para a IA comparar o desenho.');
     }
   }
   function cliModoNovo(modo) { cliModo = modo; cliMsg(''); cliAtualizarTela(); }
   $('tab-entrar').addEventListener('click', () => cliModoNovo('entrar'));
   $('tab-cadastrar').addEventListener('click', () => cliModoNovo('cadastrar'));
   $('cli-trocar').addEventListener('click', () => cliModoNovo('atualizar'));
-  $('cli-btn-logos').addEventListener('click', () => cliModoNovo('logos'));
 
   // ---- Extrair o logo oficial direto das páginas do manual em PDF ----
   // 1) o navegador abre o PDF (pdf.js) e gera miniaturas das páginas;
   // 2) a IA aponta a página em que o logo principal aparece grande e isolado;
   // 3) a página é renderizada em alta resolução, a IA marca a caixa do logo e o navegador recorta;
-  // 4) a pessoa confere e salva como logo oficial.
+  // 4) o recorte é salvo como referência interna do cliente. Nada disso aparece na tela:
+  //    o site não mexe nas artes do cliente, só usa o logo do manual para comparar.
   let logoEmAndamento = null; // promessa da leitura automática do logo (evita rodar duas vezes)
-  function extStatus(m) { $('ext-status').textContent = m || ''; }
-  function extMsg(m) { $('ext-msg').textContent = m || ''; }
+  function extStatus() {} // a leitura do logo acontece nos bastidores, sem mensagens na tela
+  function extMsg() {}
 
   async function carregarPdfjs() {
     const pdfjs = await import('/assets/pdfjs/pdf.min.js');
@@ -588,21 +550,13 @@
 
   // Lê o logo do PDF e já salva como logo oficial do cliente — sem etapa de aprovação.
   async function lerESalvarLogo(obterBytes) {
-    extMsg(''); $('ext-drop').classList.add('hidden');
     try {
       const achados = await extrairLogoDoPdf(await obterBytes(), cliente.nome);
       const dados = await chamarClientes({ acao: 'logos', nome: cliente.nome, senha: cliente.senha, logos: achados });
       cliente.logos = dados.cliente.logos;
-      extStatus('Lido automaticamente do manual.');
-      cliAtualizarTela();
       return true;
     } catch (e) {
-      if (e.message === 'download' || e instanceof TypeError) {
-        extStatus('Não consegui abrir o manual salvo. Escolha o mesmo PDF no seu computador:');
-        $('ext-drop').classList.remove('hidden');
-      } else {
-        extStatus(''); extMsg(e.message + ' A análise segue usando a descrição do logo em texto.');
-      }
+      console.warn('Leitura do logo do manual:', e);
       return false;
     }
   }
@@ -626,53 +580,7 @@
     logoEmAndamento = lerESalvarLogo(async () => new Uint8Array(await arquivo.arrayBuffer())).finally(() => { logoEmAndamento = null; });
     return logoEmAndamento;
   }
-  $('cli-btn-extrair').addEventListener('click', () => garantirLogoOficial(true));
-  prepararDrop($('ext-drop'), $('ext-arq'), (f) => lerLogoDeArquivo(f));
 
-  // ---- Logos oficiais: até 4 imagens, convertidas para JPEG num fundo que deixa o logo visível ----
-  let cliLogos = [];
-  function cliEscolherLogos(lista) {
-    cliLogos = Array.from(lista || []).filter((f) => /^image\/(png|jpeg|webp|svg\+xml)$/.test(f.type)).slice(0, 4);
-    $('cli-logos-nome').textContent = cliLogos.length ? cliLogos.map((f) => '🖼️ ' + f.name).join('  ') : '';
-    $('cli-logos-prev').innerHTML = '';
-    cliLogos.forEach((f) => { const im = document.createElement('img'); im.src = URL.createObjectURL(f); im.alt = f.name; $('cli-logos-prev').appendChild(im); });
-  }
-  (function () {
-    const zona = $('cli-logos-drop'), input = $('cli-logos-arq');
-    input.addEventListener('change', () => cliEscolherLogos(input.files));
-    ['dragenter', 'dragover'].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.add('over'); }));
-    ['dragleave', 'drop'].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.remove('over'); }));
-    zona.addEventListener('drop', (e) => cliEscolherLogos(e.dataTransfer.files));
-  })();
-
-  function prepararLogo(arquivo) {
-    return new Promise((ok, falha) => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.naturalWidth || 1000, h = img.naturalHeight || 400;
-        const escala = Math.min(1000 / Math.max(w, h), arquivo.type === 'image/svg+xml' ? 1000 / Math.max(w, h) : 1);
-        w = Math.max(1, Math.round(w * escala)); h = Math.max(1, Math.round(h * escala));
-        // Mede o logo: se for claro e tiver transparência (ex.: logo branco), usa fundo escuro
-        const m = document.createElement('canvas'); m.width = w; m.height = h;
-        const mc = m.getContext('2d'); mc.drawImage(img, 0, 0, w, h);
-        const px = mc.getImageData(0, 0, w, h).data;
-        let soma = 0, n = 0, transp = 0;
-        for (let i = 0; i < px.length; i += 16) {
-          if (px[i + 3] < 128) { transp++; continue; }
-          soma += (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255; n++;
-        }
-        const claro = n && soma / n > 0.6 && transp > 0;
-        const pad = Math.round(Math.max(w, h) * 0.06);
-        const c = document.createElement('canvas'); c.width = w + pad * 2; c.height = h + pad * 2;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = claro ? '#3a3a3a' : '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
-        ctx.drawImage(img, pad, pad, w, h);
-        ok({ mediaType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.92).split(',')[1], nome: arquivo.name });
-      };
-      img.onerror = () => falha(new Error('Não foi possível abrir a imagem do logo "' + arquivo.name + '".'));
-      img.src = URL.createObjectURL(arquivo);
-    });
-  }
   $('cli-cancelar').addEventListener('click', () => cliModoNovo('entrar'));
   $('cli-sair').addEventListener('click', () => { cliente = null; $('cli-senha').value = ''; cliModoNovo('entrar'); });
 
@@ -706,15 +614,13 @@
     cliMsg('');
     const btn = $('cli-enviar'); const rotulo = btn.textContent;
     try {
-      const conectado = cliModo === 'atualizar' || cliModo === 'logos';
+      const conectado = cliModo === 'atualizar';
       const nome = conectado ? cliente.nome : $('cli-nome').value.trim();
       const senha = conectado ? cliente.senha : $('cli-senha').value;
       if (!nome) throw new Error('Informe o nome do cliente.');
       if (senha.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.');
       const corpo = { acao: cliModo, nome, senha };
       if (cliModo === 'cadastrar' || cliModo === 'atualizar') cliConferirManual();
-      if (cliModo === 'logos' && !cliLogos.length) throw new Error('Escolha pelo menos uma imagem do logo oficial.');
-      if (cliLogos.length && (cliModo === 'cadastrar' || cliModo === 'logos')) corpo.logos = await Promise.all(cliLogos.map(prepararLogo));
       btn.disabled = true; btn.textContent = cliModo === 'entrar' ? 'Entrando…' : 'Salvando…';
       if (cliModo === 'cadastrar') await chamarClientes({ acao: 'verificar', nome, senha });
       if (cliModo === 'cadastrar' || cliModo === 'atualizar') {
@@ -726,12 +632,10 @@
       const dados = await chamarClientes(corpo);
       cliente = { nome: dados.cliente.nome, senha, manual: dados.cliente.manual, regras: dados.cliente.regras || (cliente && cliente.regras), logos: dados.cliente.logos };
       guardar('am-cliente', cliente.nome);
-      const pdfLocal = (corpo.manual && corpo.manual.tipo === 'pdf-enviado' && !(corpo.logos && corpo.logos.length)) ? cliArquivo : null;
+      const pdfLocal = (corpo.manual && corpo.manual.tipo === 'pdf-enviado') ? cliArquivo : null;
       cliArquivo = null; $('cli-arq').value = ''; $('cli-arq-nome').textContent = ''; $('cli-texto').value = '';
-      $('cli-logos-arq').value = ''; cliEscolherLogos([]);
       cliModoNovo('entrar');
-      extStatus(''); extMsg('');
-      // Logo oficial lido automaticamente do manual (do arquivo local, ou do manual salvo ao entrar)
+      // Referência interna: o logo oficial é lido do manual nos bastidores (manual novo = leitura nova)
       if (pdfLocal) lerLogoDeArquivo(pdfLocal); else garantirLogoOficial();
     } catch (e) {
       cliMsg(e.message);
@@ -781,7 +685,7 @@
       btn.disabled = true; $('spinner').style.display = 'inline-block'; $('btn-txt').textContent = 'Analisando…';
       const manual = await prepararManual();
       if (manual.tipo === 'cliente' && cliente && !(cliente.logos && cliente.logos.length) && cliente.manual && cliente.manual.origem === 'pdf') {
-        status('Lendo o logo oficial no manual do cliente (só na primeira vez)…');
+        status('Lendo o manual do cliente (só na primeira vez)…');
         await garantirLogoOficial();
       }
       const peca = await prepararPeca();

@@ -69,9 +69,10 @@ mesmo assim descaracteriza a marca. Por isso:
 
 0. **De onde vem a referência:** quando o manual do cliente é um PDF, o sistema lê
    automaticamente o desenho oficial do logo nas páginas do próprio manual (a página em que
-   o logo principal aparece isolado) e envia essas imagens junto com a peça. O cliente também
-   pode enviar o arquivo do logo para corrigir. Trate essas imagens como a verdade sobre o
-   **desenho** do logo; o texto do manual continua valendo para cores, tamanhos e usos.
+   o logo principal aparece isolado) e envia essas imagens junto com a peça. Essa leitura é
+   interna: o site não altera nem substitui as artes do cliente, só usa o manual como
+   referência. Trate essas imagens como a verdade sobre o **desenho** do logo; o texto do
+   manual continua valendo para cores, tamanhos e usos.
 1. Quando receber **imagens oficiais do logo** (referência visual), compare o logo da peça
    com elas **letra por letra**: forma de cada letra, recortes e cortes característicos
    (por exemplo, um "O" com recorte), terminais, espessura dos traços, larguras,
