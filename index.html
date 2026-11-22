@@ -80,6 +80,8 @@
   .cli-regras { margin-top: 12px; font-size: 13.5px; }
   .cli-regras summary { cursor: pointer; color: var(--accent); font-weight: 500; }
   #cli-regras-texto { margin-top: 10px; max-height: 340px; overflow: auto; white-space: pre-wrap; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.5; }
+  .logos-prev { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .logos-prev img { height: 56px; max-width: 180px; object-fit: contain; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
   .nota { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
   .opt { position: relative; }
   .opt input { position: absolute; opacity: 0; }
@@ -213,7 +215,10 @@
           <summary>Ver as regras da marca que a IA vai usar</summary>
           <div id="cli-regras-texto"></div>
         </details>
+        <div class="logos-prev" id="cli-logos-salvos"></div>
+        <p class="nota hidden" id="cli-sem-logos">⚠️ Sem imagens do logo oficial, a IA não consegue comparar o desenho exato do logo. Envie as versões aprovadas.</p>
         <div class="cli-acoes" style="margin-top:12px">
+          <button type="button" class="link-btn" id="cli-btn-logos">Enviar logos oficiais</button>
           <button type="button" class="link-btn" id="cli-trocar">Atualizar o manual</button>
           <button type="button" class="link-btn" id="cli-sair">Sair</button>
         </div>
@@ -239,6 +244,16 @@
             <div class="file-name" id="cli-arq-nome"></div>
           </label>
           <textarea id="cli-texto" class="hidden" placeholder="Cole aqui as regras do manual do cliente..."></textarea>
+        </div>
+        <div id="cli-area-logos" class="cli-campo hidden">
+          <label>Logos oficiais <span style="font-weight:400;color:var(--muted)">(PNG, JPG ou SVG · até 4 · recomendado)</span></label>
+          <label class="drop" id="cli-logos-drop">
+            <input type="file" id="cli-logos-arq" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple>
+            <strong>Clique para escolher</strong> ou arraste as versões aprovadas do logo
+            <div class="file-name" id="cli-logos-nome"></div>
+          </label>
+          <div class="logos-prev" id="cli-logos-prev"></div>
+          <p class="nota">A IA compara o desenho das letras e do símbolo da peça com estas imagens. Use os arquivos oficiais (de preferência PNG com fundo transparente).</p>
         </div>
         <div class="cli-acoes">
           <button type="button" class="btn-sec" id="cli-enviar">Entrar</button>
@@ -348,7 +363,7 @@
     const ctx = c.getContext('2d');
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height); // fundo branco para PNG transparente
     ctx.drawImage(fonte, 0, 0, c.width, c.height);
-    return { mediaType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.86).split(',')[1], preview: c.toDataURL('image/jpeg', 0.6) };
+    return { mediaType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.86).split(',')[1], preview: c.toDataURL('image/jpeg', 0.6), w: c.width, h: c.height };
   }
 
   function prepararImagem(arquivo) {
@@ -356,7 +371,7 @@
       const img = new Image();
       img.onload = () => {
         const r = canvasParaJpeg(img, img.naturalWidth, img.naturalHeight, 1568);
-        ok({ tipo: 'imagem', imagens: [r], largura: img.naturalWidth, altura: img.naturalHeight });
+        ok({ tipo: 'imagem', imagens: [r], largura: img.naturalWidth, altura: img.naturalHeight, fonte: img });
       };
       img.onerror = () => falha(new Error('Imagem inválida ou formato não suportado.'));
       img.src = URL.createObjectURL(arquivo);
@@ -446,7 +461,7 @@
 
   // Mostra a parte certa do painel conforme o modo e se há cliente conectado
   function cliAtualizarTela() {
-    const atualizando = cliModo === 'atualizar';
+    const atualizando = cliModo === 'atualizar' || cliModo === 'logos'; // cliente conectado editando algo
     $('cli-conectado').classList.toggle('hidden', !cliente);
     $('cli-form').classList.toggle('hidden', !!cliente && !atualizando);
     $('cli-tabs').classList.toggle('hidden', atualizando);
@@ -454,10 +469,12 @@
     $('cli-nota').classList.toggle('hidden', atualizando);
     $('cli-cancelar').classList.toggle('hidden', !atualizando);
     $('cli-trocar').classList.toggle('hidden', atualizando);
-    $('cli-area-manual').classList.toggle('hidden', cliModo === 'entrar');
+    $('cli-btn-logos').classList.toggle('hidden', atualizando);
+    $('cli-area-manual').classList.toggle('hidden', !(cliModo === 'cadastrar' || cliModo === 'atualizar'));
+    $('cli-area-logos').classList.toggle('hidden', !(cliModo === 'cadastrar' || cliModo === 'logos'));
     $('tab-entrar').setAttribute('aria-selected', String(cliModo === 'entrar'));
     $('tab-cadastrar').setAttribute('aria-selected', String(cliModo === 'cadastrar'));
-    $('cli-enviar').textContent = { entrar: 'Entrar', cadastrar: 'Cadastrar cliente', atualizar: 'Salvar novo manual' }[cliModo];
+    $('cli-enviar').textContent = { entrar: 'Entrar', cadastrar: 'Cadastrar cliente', atualizar: 'Salvar novo manual', logos: 'Salvar logos' }[cliModo];
     $('cli-senha').autocomplete = cliModo === 'cadastrar' ? 'new-password' : 'current-password';
     if (cliente) {
       const m = cliente.manual || {};
@@ -466,12 +483,62 @@
       $('cli-manual-ok').textContent = 'Manual salvo: ' + (m.nomeArquivo || '') + (m.tamanho ? ' (' + mb(m.tamanho) + ')' : '') + (quando ? ' · atualizado em ' + quando : '');
       $('cli-regras-texto').textContent = cliente.regras || '';
       $('cli-regras').classList.toggle('hidden', !cliente.regras);
+      const salvos = cliente.logos || [];
+      $('cli-logos-salvos').innerHTML = salvos.map((l) => `<img src="data:image/jpeg;base64,${l.data}" alt="Logo oficial ${esc(l.nome || '')}" title="${esc(l.nome || '')}">`).join('');
+      $('cli-sem-logos').classList.toggle('hidden', salvos.length > 0);
+      $('cli-btn-logos').textContent = salvos.length ? 'Trocar logos oficiais' : 'Enviar logos oficiais';
     }
   }
   function cliModoNovo(modo) { cliModo = modo; cliMsg(''); cliAtualizarTela(); }
   $('tab-entrar').addEventListener('click', () => cliModoNovo('entrar'));
   $('tab-cadastrar').addEventListener('click', () => cliModoNovo('cadastrar'));
   $('cli-trocar').addEventListener('click', () => cliModoNovo('atualizar'));
+  $('cli-btn-logos').addEventListener('click', () => cliModoNovo('logos'));
+
+  // ---- Logos oficiais: até 4 imagens, convertidas para JPEG num fundo que deixa o logo visível ----
+  let cliLogos = [];
+  function cliEscolherLogos(lista) {
+    cliLogos = Array.from(lista || []).filter((f) => /^image\/(png|jpeg|webp|svg\+xml)$/.test(f.type)).slice(0, 4);
+    $('cli-logos-nome').textContent = cliLogos.length ? cliLogos.map((f) => '🖼️ ' + f.name).join('  ') : '';
+    $('cli-logos-prev').innerHTML = '';
+    cliLogos.forEach((f) => { const im = document.createElement('img'); im.src = URL.createObjectURL(f); im.alt = f.name; $('cli-logos-prev').appendChild(im); });
+  }
+  (function () {
+    const zona = $('cli-logos-drop'), input = $('cli-logos-arq');
+    input.addEventListener('change', () => cliEscolherLogos(input.files));
+    ['dragenter', 'dragover'].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.remove('over'); }));
+    zona.addEventListener('drop', (e) => cliEscolherLogos(e.dataTransfer.files));
+  })();
+
+  function prepararLogo(arquivo) {
+    return new Promise((ok, falha) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.naturalWidth || 1000, h = img.naturalHeight || 400;
+        const escala = Math.min(1000 / Math.max(w, h), arquivo.type === 'image/svg+xml' ? 1000 / Math.max(w, h) : 1);
+        w = Math.max(1, Math.round(w * escala)); h = Math.max(1, Math.round(h * escala));
+        // Mede o logo: se for claro e tiver transparência (ex.: logo branco), usa fundo escuro
+        const m = document.createElement('canvas'); m.width = w; m.height = h;
+        const mc = m.getContext('2d'); mc.drawImage(img, 0, 0, w, h);
+        const px = mc.getImageData(0, 0, w, h).data;
+        let soma = 0, n = 0, transp = 0;
+        for (let i = 0; i < px.length; i += 16) {
+          if (px[i + 3] < 128) { transp++; continue; }
+          soma += (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255; n++;
+        }
+        const claro = n && soma / n > 0.6 && transp > 0;
+        const pad = Math.round(Math.max(w, h) * 0.06);
+        const c = document.createElement('canvas'); c.width = w + pad * 2; c.height = h + pad * 2;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = claro ? '#3a3a3a' : '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, pad, pad, w, h);
+        ok({ mediaType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.92).split(',')[1], nome: arquivo.name });
+      };
+      img.onerror = () => falha(new Error('Não foi possível abrir a imagem do logo "' + arquivo.name + '".'));
+      img.src = URL.createObjectURL(arquivo);
+    });
+  }
   $('cli-cancelar').addEventListener('click', () => cliModoNovo('entrar'));
   $('cli-sair').addEventListener('click', () => { cliente = null; $('cli-senha').value = ''; cliModoNovo('entrar'); });
 
@@ -505,24 +572,28 @@
     cliMsg('');
     const btn = $('cli-enviar'); const rotulo = btn.textContent;
     try {
-      const nome = cliModo === 'atualizar' ? cliente.nome : $('cli-nome').value.trim();
-      const senha = cliModo === 'atualizar' ? cliente.senha : $('cli-senha').value;
+      const conectado = cliModo === 'atualizar' || cliModo === 'logos';
+      const nome = conectado ? cliente.nome : $('cli-nome').value.trim();
+      const senha = conectado ? cliente.senha : $('cli-senha').value;
       if (!nome) throw new Error('Informe o nome do cliente.');
       if (senha.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.');
       const corpo = { acao: cliModo, nome, senha };
-      if (cliModo !== 'entrar') cliConferirManual();
+      if (cliModo === 'cadastrar' || cliModo === 'atualizar') cliConferirManual();
+      if (cliModo === 'logos' && !cliLogos.length) throw new Error('Escolha pelo menos uma imagem do logo oficial.');
+      if (cliLogos.length && (cliModo === 'cadastrar' || cliModo === 'logos')) corpo.logos = await Promise.all(cliLogos.map(prepararLogo));
       btn.disabled = true; btn.textContent = cliModo === 'entrar' ? 'Entrando…' : 'Salvando…';
       if (cliModo === 'cadastrar') await chamarClientes({ acao: 'verificar', nome, senha });
-      if (cliModo !== 'entrar') {
+      if (cliModo === 'cadastrar' || cliModo === 'atualizar') {
         corpo.manual = await cliManualDoFormulario(nome, senha);
         cliStatus(corpo.manual.tipo === 'pdf-enviado'
           ? 'PDF enviado. A IA está lendo o manual inteiro e anotando as regras da marca. Isso leva de 1 a 3 minutos, só desta vez…'
           : 'Salvando as regras…');
       }
       const dados = await chamarClientes(corpo);
-      cliente = { nome: dados.cliente.nome, senha, manual: dados.cliente.manual, regras: dados.cliente.regras };
+      cliente = { nome: dados.cliente.nome, senha, manual: dados.cliente.manual, regras: dados.cliente.regras || (cliente && cliente.regras), logos: dados.cliente.logos };
       guardar('am-cliente', cliente.nome);
       cliArquivo = null; $('cli-arq').value = ''; $('cli-arq-nome').textContent = ''; $('cli-texto').value = '';
+      $('cli-logos-arq').value = ''; cliEscolherLogos([]);
       cliModoNovo('entrar');
     } catch (e) {
       cliMsg(e.message);
@@ -534,6 +605,36 @@
   const ultimo = lembrar('am-cliente');
   if (ultimo) $('cli-nome').value = ultimo;
 
+  // ---------- Recorte ampliado do logo da peça ----------
+  // A IA aponta onde está o logo; o navegador recorta essa área da imagem ORIGINAL
+  // (resolução total) e amplia, para a análise conseguir comparar o desenho das letras.
+  async function recortarLogo(peca, marca) {
+    try {
+      const base = peca.imagens[0];
+      const resp = await fetch('/api/localizar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagem: { mediaType: base.mediaType, data: base.data }, largura: base.w, altura: base.h, marca }) });
+      if (!resp.ok) return [];
+      const { logos } = await resp.json();
+      const fx = peca.largura / base.w, fy = peca.altura / base.h;
+      return (logos || []).slice(0, 2).map((b) => {
+        // margem de 35% em volta da caixa, para não cortar letras
+        const mx = b.largura * 0.35, my = b.altura * 0.35;
+        const x0 = Math.max(0, (b.x - mx) * fx), y0 = Math.max(0, (b.y - my) * fy);
+        const x1 = Math.min(peca.largura, (b.x + b.largura + mx) * fx), y1 = Math.min(peca.altura, (b.y + b.altura + my) * fy);
+        const cw = x1 - x0, ch = y1 - y0;
+        if (cw < 8 || ch < 8) return null;
+        const escala = Math.min(4, 1200 / Math.max(cw, ch)); // amplia até ~1200 px (no máx. 4×)
+        const c = document.createElement('canvas'); c.width = Math.round(cw * escala); c.height = Math.round(ch * escala);
+        const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high';
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(peca.fonte, x0, y0, cw, ch, 0, 0, c.width, c.height);
+        return { mediaType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.92).split(',')[1] };
+      }).filter(Boolean);
+    } catch (_) {
+      return []; // se não der para localizar, a análise segue sem o recorte
+    }
+  }
+
   // ---------- Análise ----------
   $('btn-analisar').addEventListener('click', async () => {
     erro('');
@@ -542,7 +643,12 @@
       btn.disabled = true; $('spinner').style.display = 'inline-block'; $('btn-txt').textContent = 'Analisando…';
       const manual = await prepararManual();
       const peca = await prepararPeca();
-      (peca.imagens || []).forEach((im) => delete im.preview);
+      if (peca.tipo === 'imagem' && peca.fonte) {
+        status('Localizando o logo na peça para ampliar…');
+        peca.recorteLogo = await recortarLogo(peca, manual.tipo === 'cliente' ? manual.cliente : '');
+      }
+      delete peca.fonte;
+      (peca.imagens || []).forEach((im) => { delete im.preview; delete im.w; delete im.h; });
       const payload = JSON.stringify({ manual, peca, contexto: { canal: $('canal').value, observacoes: $('obs').value } });
       if (payload.length > LIMITE_PAYLOAD) throw new Error('Os arquivos somados ficaram grandes demais (máx. ~4 MB). Use um manual menor ou cole as regras como texto.');
       status('A IA está lendo o manual e analisando a peça. Isso leva de 20 a 60 segundos…');

@@ -88,6 +88,7 @@ module.exports = async function handler(req, res) {
 
     const skill = lerArquivo('skills/analista-de-marca/SKILL.md');
     const conteudo = [];
+    let temLogosOficiais = false;
 
     // 1) Manual de marca
     conteudo.push({ type: 'text', text: '# MANUAL DE MARCA (fonte da verdade)' });
@@ -102,6 +103,14 @@ module.exports = async function handler(req, res) {
       const salvo = await clientes.carregarManual(manual.cliente, manual.senha);
       conteudo.push({ type: 'text', text: `Cliente cadastrado: ${salvo.nome}.` });
       conteudo.push(salvo.tipo === 'pdf' ? blocoPdf(salvo.data) : { type: 'text', text: salvo.texto });
+      if (salvo.logos && salvo.logos.length) {
+        conteudo.push({ type: 'text', text: `## LOGOS OFICIAIS DA MARCA (referência visual)\nAs ${salvo.logos.length} imagem(ns) a seguir são o logotipo oficial aprovado, enviadas pelo cliente. Elas são a referência para o desenho do logo: compare a peça com elas letra por letra (veja "Verificação do logotipo" na skill).` });
+        salvo.logos.forEach((l, i) => {
+          conteudo.push({ type: 'text', text: `Logo oficial ${i + 1}${l.nome ? ` (${l.nome})` : ''}:` });
+          conteudo.push(blocoImagem(l));
+        });
+        temLogosOficiais = true;
+      }
     } else {
       return res.status(400).json({ erro: 'Manual de marca inválido.' });
     }
@@ -130,9 +139,20 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ erro: 'Peça inválida.' });
     }
 
+    // 3) Recorte ampliado da região do logo na peça (feito no navegador, quando foi possível localizar)
+    const recortes = Array.isArray(peca.recorteLogo) ? peca.recorteLogo.filter((r) => r && r.data && r.mediaType === 'image/jpeg').slice(0, 2) : [];
+    if (recortes.length) {
+      conteudo.push({ type: 'text', text: 'Recorte ampliado da região onde o logo aparece na peça (gerado automaticamente a partir da imagem original, em alta resolução). Use-o para comparar o desenho das letras:' });
+      recortes.forEach((r) => conteudo.push(blocoImagem(r)));
+    }
+
     conteudo.push({
       type: 'text',
-      text: 'Analise a peça seguindo rigorosamente a skill Analista de Marca. Ao terminar, chame a ferramenta registrar_analise uma única vez com o relatório completo. Não escreva o relatório em texto: ele deve ir somente na ferramenta.'
+      text: 'Analise a peça seguindo rigorosamente a skill Analista de Marca. ' +
+        (temLogosOficiais
+          ? 'Antes de tudo, compare o logotipo da peça com as imagens oficiais do logo, letra por letra; se o desenho for diferente (outra fonte, sem os recortes ou detalhes característicos), o logotipo está errado. '
+          : 'Confira com atenção o desenho do logotipo, não apenas o nome e a cor. ') +
+        'Ao terminar, chame a ferramenta registrar_analise uma única vez com o relatório completo. Não escreva o relatório em texto: ele deve ir somente na ferramenta.'
     });
 
     const resposta = await fetch('https://api.anthropic.com/v1/messages', {
