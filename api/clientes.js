@@ -1,5 +1,5 @@
 // Analista de Marca — cadastro e acesso de clientes
-// POST { acao: 'verificar' | 'cadastrar' | 'entrar' | 'atualizar' | 'logos', nome, senha, manual?, logos? }
+// POST { acao: 'verificar' | 'cadastrar' | 'entrar' | 'atualizar' | 'logos' | 'link-manual', nome, senha, manual?, logos? }
 // O cadastro com PDF pode levar de 1 a 3 minutos: a IA lê o manual inteiro uma vez.
 
 const clientes = require('../lib/clientes');
@@ -16,6 +16,9 @@ module.exports = async function handler(req, res) {
     }
     if (acao === 'entrar') {
       return res.status(200).json({ cliente: await clientes.entrar(nome, senha) });
+    }
+    if (acao === 'link-manual') {
+      return res.status(200).json(await clientes.linkDoManual(nome, senha));
     }
     if (acao === 'logos') {
       return res.status(200).json({ cliente: await clientes.atualizarLogos({ nome, senha, logos }) });

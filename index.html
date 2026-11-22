@@ -82,6 +82,11 @@
   #cli-regras-texto { margin-top: 10px; max-height: 340px; overflow: auto; white-space: pre-wrap; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.5; }
   .logos-prev { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
   .logos-prev img { height: 56px; max-width: 180px; object-fit: contain; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+  .extracao { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .candidatos { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+  .candidato { border: 1.5px solid var(--line); border-radius: 10px; padding: 8px; background: #fff; cursor: pointer; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .candidato img { height: 90px; max-width: 280px; object-fit: contain; display: block; }
+  .candidato:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
   .nota { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
   .opt { position: relative; }
   .opt input { position: absolute; opacity: 0; }
@@ -218,9 +223,24 @@
         <div class="logos-prev" id="cli-logos-salvos"></div>
         <p class="nota hidden" id="cli-sem-logos">⚠️ Sem imagens do logo oficial, a IA não consegue comparar o desenho exato do logo. Envie as versões aprovadas.</p>
         <div class="cli-acoes" style="margin-top:12px">
+          <button type="button" class="link-btn hidden" id="cli-btn-extrair">Extrair logo do manual</button>
           <button type="button" class="link-btn" id="cli-btn-logos">Enviar logos oficiais</button>
           <button type="button" class="link-btn" id="cli-trocar">Atualizar o manual</button>
           <button type="button" class="link-btn" id="cli-sair">Sair</button>
+        </div>
+        <div class="extracao hidden" id="cli-extracao">
+          <strong style="font-size:14px">Logo oficial extraído do manual</strong>
+          <p class="cli-status" id="ext-status" aria-live="polite" style="margin:6px 0 0"></p>
+          <label class="drop hidden" id="ext-drop" style="margin-top:10px">
+            <input type="file" id="ext-arq" accept="application/pdf">
+            <strong>Escolha o PDF do manual</strong> no seu computador (o mesmo que foi cadastrado)
+          </label>
+          <div class="candidatos" id="ext-candidatos"></div>
+          <div class="cli-acoes">
+            <button type="button" class="btn-sec hidden" id="ext-salvar">Usar como logo oficial</button>
+            <button type="button" class="link-btn" id="ext-cancelar">Fechar</button>
+            <span class="cli-msg" id="ext-msg" role="alert"></span>
+          </div>
         </div>
       </div>
       <div id="cli-form">
@@ -486,7 +506,8 @@
       const salvos = cliente.logos || [];
       $('cli-logos-salvos').innerHTML = salvos.map((l) => `<img src="data:image/jpeg;base64,${l.data}" alt="Logo oficial ${esc(l.nome || '')}" title="${esc(l.nome || '')}">`).join('');
       $('cli-sem-logos').classList.toggle('hidden', salvos.length > 0);
-      $('cli-btn-logos').textContent = salvos.length ? 'Trocar logos oficiais' : 'Enviar logos oficiais';
+      $('cli-btn-logos').textContent = salvos.length ? 'Trocar logos oficiais (arquivo)' : 'Enviar logos oficiais (arquivo)';
+      $('cli-btn-extrair').classList.toggle('hidden', atualizando || !(cliente.manual && cliente.manual.origem === 'pdf'));
     }
   }
   function cliModoNovo(modo) { cliModo = modo; cliMsg(''); cliAtualizarTela(); }
@@ -494,6 +515,124 @@
   $('tab-cadastrar').addEventListener('click', () => cliModoNovo('cadastrar'));
   $('cli-trocar').addEventListener('click', () => cliModoNovo('atualizar'));
   $('cli-btn-logos').addEventListener('click', () => cliModoNovo('logos'));
+
+  // ---- Extrair o logo oficial direto das páginas do manual em PDF ----
+  // 1) o navegador abre o PDF (pdf.js) e gera miniaturas das páginas;
+  // 2) a IA aponta a página em que o logo principal aparece grande e isolado;
+  // 3) a página é renderizada em alta resolução, a IA marca a caixa do logo e o navegador recorta;
+  // 4) a pessoa confere e salva como logo oficial.
+  let extCandidatos = [];
+  function extStatus(m) { $('ext-status').textContent = m || ''; }
+  function extMsg(m) { $('ext-msg').textContent = m || ''; }
+  function extAbrir() {
+    $('cli-extracao').classList.remove('hidden'); $('ext-candidatos').innerHTML = ''; $('ext-drop').classList.add('hidden');
+    $('ext-salvar').classList.add('hidden'); extMsg(''); extCandidatos = [];
+  }
+  $('ext-cancelar').addEventListener('click', () => { $('cli-extracao').classList.add('hidden'); extStatus(''); });
+
+  async function carregarPdfjs() {
+    const pdfjs = await import('/assets/pdfjs/pdf.min.js');
+    pdfjs.GlobalWorkerOptions.workerSrc = '/assets/pdfjs/pdf.worker.min.js';
+    return pdfjs;
+  }
+  async function renderizarPagina(pdf, numero, ladoMax) {
+    const pagina = await pdf.getPage(numero);
+    const v1 = pagina.getViewport({ scale: 1 });
+    const viewport = pagina.getViewport({ scale: ladoMax / Math.max(v1.width, v1.height) });
+    const c = document.createElement('canvas'); c.width = Math.round(viewport.width); c.height = Math.round(viewport.height);
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+    await pagina.render({ canvasContext: ctx, viewport }).promise;
+    pagina.cleanup();
+    return c;
+  }
+  function canvasReduzido(c, ladoMax, qualidade) {
+    const e = Math.min(1, ladoMax / Math.max(c.width, c.height));
+    const r = document.createElement('canvas'); r.width = Math.round(c.width * e); r.height = Math.round(c.height * e);
+    r.getContext('2d').drawImage(c, 0, 0, r.width, r.height);
+    return { data: r.toDataURL('image/jpeg', qualidade).split(',')[1], w: r.width, h: r.height };
+  }
+  async function postarJson(url, corpo) {
+    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(dados.erro || 'Erro (código ' + resp.status + ').');
+    return dados;
+  }
+
+  async function extrairLogoDoPdf(bytes, marca) {
+    extMsg('');
+    extStatus('Abrindo o manual…');
+    const pdfjs = await carregarPdfjs();
+    const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+    const total = Math.min(pdf.numPages, 60); // o logo costuma estar nas primeiras páginas
+    const miniaturas = [];
+    for (let n = 1; n <= total; n++) {
+      extStatus('Lendo as páginas do manual… ' + n + ' de ' + total);
+      const c = await renderizarPagina(pdf, n, 420);
+      miniaturas.push({ numero: n, data: canvasReduzido(c, 420, 0.55).data });
+    }
+    extStatus('A IA está procurando a página do logo…');
+    const { paginas } = await postarJson('/api/localizar', { modo: 'pagina', paginas: miniaturas, marca });
+    if (!paginas || !paginas.length) throw new Error('A IA não encontrou uma página com o logo isolado. Envie o arquivo do logo manualmente.');
+    const achados = [];
+    for (const n of paginas) {
+      extStatus('Recortando o logo da página ' + n + '…');
+      const grande = await renderizarPagina(pdf, n, 2400);
+      const media = canvasReduzido(grande, 1568, 0.85);
+      const { logos } = await postarJson('/api/localizar', { imagem: { mediaType: 'image/jpeg', data: media.data }, largura: media.w, altura: media.h, marca });
+      const b = (logos || [])[0];
+      if (!b) continue;
+      const f = grande.width / media.w;
+      const mx = b.largura * 0.15, my = b.altura * 0.25; // margem generosa para não cortar letras
+      const x0 = Math.max(0, (b.x - mx) * f), y0 = Math.max(0, (b.y - my) * f);
+      const x1 = Math.min(grande.width, (b.x + b.largura + mx) * f), y1 = Math.min(grande.height, (b.y + b.altura + my) * f);
+      const e = Math.min(1, 1000 / Math.max(x1 - x0, y1 - y0));
+      const c = document.createElement('canvas'); c.width = Math.round((x1 - x0) * e); c.height = Math.round((y1 - y0) * e);
+      c.getContext('2d').drawImage(grande, x0, y0, x1 - x0, y1 - y0, 0, 0, c.width, c.height);
+      achados.push({ mediaType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.92).split(',')[1], nome: 'Extraído do manual (pág. ' + n + ')' });
+    }
+    pdf.destroy();
+    if (!achados.length) throw new Error('Não consegui recortar o logo das páginas encontradas. Envie o arquivo do logo manualmente.');
+    extCandidatos = achados;
+    $('ext-candidatos').innerHTML = achados.map((a, i) =>
+      `<label class="candidato"><img src="data:image/jpeg;base64,${a.data}" alt="${esc(a.nome)}"><span><input type="checkbox" data-i="${i}" checked> ${esc(a.nome)}</span></label>`).join('');
+    $('ext-salvar').classList.remove('hidden');
+    extStatus('Confira o recorte. Desmarque o que não for o logo oficial e clique em "Usar como logo oficial".');
+  }
+
+  async function extrairDoManualSalvo() {
+    extAbrir();
+    try {
+      extStatus('Baixando o manual salvo…');
+      const { url } = await chamarClientes({ acao: 'link-manual', nome: cliente.nome, senha: cliente.senha });
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('download');
+      await extrairLogoDoPdf(new Uint8Array(await r.arrayBuffer()), cliente.nome);
+    } catch (e) {
+      if (e.message === 'download' || e instanceof TypeError) {
+        extStatus('Não consegui baixar o manual salvo. Escolha o mesmo PDF no seu computador:');
+        $('ext-drop').classList.remove('hidden');
+      } else { extStatus(''); extMsg(e.message); }
+    }
+  }
+  $('cli-btn-extrair').addEventListener('click', extrairDoManualSalvo);
+  async function extrairDeArquivo(arquivo) {
+    extAbrir();
+    try { await extrairLogoDoPdf(new Uint8Array(await arquivo.arrayBuffer()), cliente.nome); }
+    catch (e) { extStatus(''); extMsg(e.message); }
+  }
+  prepararDrop($('ext-drop'), $('ext-arq'), (f) => extrairDeArquivo(f));
+
+  $('ext-salvar').addEventListener('click', async () => {
+    const escolhidos = Array.from(document.querySelectorAll('#ext-candidatos input:checked')).map((i) => extCandidatos[+i.dataset.i]);
+    if (!escolhidos.length) { extMsg('Marque pelo menos um recorte.'); return; }
+    const btn = $('ext-salvar'); btn.disabled = true; extMsg('');
+    try {
+      const dados = await chamarClientes({ acao: 'logos', nome: cliente.nome, senha: cliente.senha, logos: escolhidos });
+      cliente.logos = dados.cliente.logos;
+      $('cli-extracao').classList.add('hidden'); extStatus('');
+      cliAtualizarTela();
+    } catch (e) { extMsg(e.message); } finally { btn.disabled = false; }
+  });
 
   // ---- Logos oficiais: até 4 imagens, convertidas para JPEG num fundo que deixa o logo visível ----
   let cliLogos = [];
@@ -592,9 +731,11 @@
       const dados = await chamarClientes(corpo);
       cliente = { nome: dados.cliente.nome, senha, manual: dados.cliente.manual, regras: dados.cliente.regras || (cliente && cliente.regras), logos: dados.cliente.logos };
       guardar('am-cliente', cliente.nome);
+      const pdfLocal = (corpo.manual && corpo.manual.tipo === 'pdf-enviado' && !(corpo.logos && corpo.logos.length)) ? cliArquivo : null;
       cliArquivo = null; $('cli-arq').value = ''; $('cli-arq-nome').textContent = ''; $('cli-texto').value = '';
       $('cli-logos-arq').value = ''; cliEscolherLogos([]);
       cliModoNovo('entrar');
+      if (pdfLocal) extrairDeArquivo(pdfLocal); // pega o logo oficial do próprio manual
     } catch (e) {
       cliMsg(e.message);
     } finally {
