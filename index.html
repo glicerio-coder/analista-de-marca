@@ -76,6 +76,10 @@
   .btn-sec:disabled { opacity: .5; cursor: progress; }
   .link-btn { border: 0; background: none; color: var(--accent); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; padding: 0; text-decoration: underline; }
   #cli-conectado:not(.hidden) + #cli-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .cli-status { font-size: 13.5px; color: var(--muted); }
+  .cli-regras { margin-top: 12px; font-size: 13.5px; }
+  .cli-regras summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+  #cli-regras-texto { margin-top: 10px; max-height: 340px; overflow: auto; white-space: pre-wrap; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.5; }
   .nota { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
   .opt { position: relative; }
   .opt input { position: absolute; opacity: 0; }
@@ -186,7 +190,7 @@
       <div class="opt"><input type="radio" name="manual" id="m-exemplo" value="exemplo" checked><label for="m-exemplo">Manual de exemplo<small>Aurora Café (marca fictícia)</small></label></div>
       <div class="opt"><input type="radio" name="manual" id="m-pdf" value="pdf"><label for="m-pdf">Enviar PDF<small>até 3 MB</small></label></div>
       <div class="opt"><input type="radio" name="manual" id="m-texto" value="texto"><label for="m-texto">Colar regras<small>texto livre</small></label></div>
-      <div class="opt"><input type="radio" name="manual" id="m-cliente" value="cliente"><label for="m-cliente">Cliente cadastrado<small>manual salvo</small></label></div>
+      <div class="opt"><input type="radio" name="manual" id="m-cliente" value="cliente"><label for="m-cliente">Cliente cadastrado<small>manual salvo, até 100 MB</small></label></div>
     </div>
     <div id="painel-exemplo" class="demo-box">
       Vamos usar o manual da <strong>Aurora Café</strong>: paleta Café Torrado #3B2416, Creme #F4E9D8 e Laranja Aurora #E8772E; títulos em Fraunces e textos em Inter; tom acolhedor, máx. 2 emojis. <a href="/dados/manual-exemplo-aurora-cafe.md" target="_blank" rel="noopener">Ver manual completo</a> · <a href="/exemplos/" target="_blank" rel="noopener">Baixar peças de teste</a>
@@ -205,6 +209,10 @@
           <span aria-hidden="true">✅</span><strong id="cli-nome-ok"></strong>
           <span class="meta" id="cli-manual-ok"></span>
         </div>
+        <details class="cli-regras hidden" id="cli-regras">
+          <summary>Ver as regras da marca que a IA vai usar</summary>
+          <div id="cli-regras-texto"></div>
+        </details>
         <div class="cli-acoes" style="margin-top:12px">
           <button type="button" class="link-btn" id="cli-trocar">Atualizar o manual</button>
           <button type="button" class="link-btn" id="cli-sair">Sair</button>
@@ -222,7 +230,7 @@
         <div id="cli-area-manual" class="cli-campo hidden">
           <label>Manual de marca do cliente</label>
           <div class="cli-fonte">
-            <label><input type="radio" name="cli-fonte" value="pdf" checked> PDF (até 3 MB)</label>
+            <label><input type="radio" name="cli-fonte" value="pdf" checked> PDF (até 100 MB)</label>
             <label><input type="radio" name="cli-fonte" value="texto"> Colar regras</label>
           </div>
           <label class="drop" id="cli-drop">
@@ -235,9 +243,10 @@
         <div class="cli-acoes">
           <button type="button" class="btn-sec" id="cli-enviar">Entrar</button>
           <button type="button" class="link-btn hidden" id="cli-cancelar">Cancelar</button>
+          <span class="cli-status" id="cli-status" aria-live="polite"></span>
           <span class="cli-msg" id="cli-msg" role="alert"></span>
         </div>
-        <p class="nota" id="cli-nota">O manual fica num armazenamento privado e só pode ser usado com o nome e a senha do cliente. A senha não é guardada, apenas uma versão protegida dela.</p>
+        <p class="nota" id="cli-nota">O manual fica num armazenamento privado e só pode ser usado com o nome e a senha do cliente. A senha não é guardada, apenas uma versão protegida dela. Com PDF, a IA lê o manual uma única vez (de 1 a 3 minutos) e salva as regras da marca em texto para as próximas análises.</p>
       </div>
     </div>
   </section>
@@ -413,6 +422,21 @@
   const lembrar = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
 
   function cliMsg(m) { $('cli-msg').textContent = m || ''; }
+  function cliStatus(m) { $('cli-status').textContent = m || ''; }
+  // Mesma regra do servidor (lib/clientes.js): "Café Aurora" -> "cafe-aurora"
+  function gerarCodigo(nome) {
+    return String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  }
+  async function chamarClientes(corpo) {
+    const resp = await fetch('/api/clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+    let dados;
+    try { dados = await resp.json(); } catch (_) {
+      throw new Error(resp.status === 504 ? 'A leitura do manual demorou demais. Tente com um PDF menor ou só com as páginas principais.' : 'O servidor não respondeu corretamente (código ' + resp.status + ').');
+    }
+    if (!resp.ok) throw new Error(dados.erro || 'Não foi possível concluir.');
+    return dados;
+  }
   function cliFonte() { return document.querySelector('input[name=cli-fonte]:checked').value; }
   document.querySelectorAll('input[name=cli-fonte]').forEach((r) => r.addEventListener('change', () => {
     $('cli-drop').classList.toggle('hidden', cliFonte() !== 'pdf');
@@ -439,7 +463,9 @@
       const m = cliente.manual || {};
       const quando = m.atualizadoEm ? new Date(m.atualizadoEm).toLocaleDateString('pt-BR') : '';
       $('cli-nome-ok').textContent = cliente.nome;
-      $('cli-manual-ok').textContent = 'Manual salvo: ' + (m.nomeArquivo || '') + (quando ? ' · atualizado em ' + quando : '');
+      $('cli-manual-ok').textContent = 'Manual salvo: ' + (m.nomeArquivo || '') + (m.tamanho ? ' (' + mb(m.tamanho) + ')' : '') + (quando ? ' · atualizado em ' + quando : '');
+      $('cli-regras-texto').textContent = cliente.regras || '';
+      $('cli-regras').classList.toggle('hidden', !cliente.regras);
     }
   }
   function cliModoNovo(modo) { cliModo = modo; cliMsg(''); cliAtualizarTela(); }
@@ -449,16 +475,30 @@
   $('cli-cancelar').addEventListener('click', () => cliModoNovo('entrar'));
   $('cli-sair').addEventListener('click', () => { cliente = null; $('cli-senha').value = ''; cliModoNovo('entrar'); });
 
-  async function cliManualDoFormulario() {
+  // Confere o manual do formulário antes de qualquer envio
+  function cliConferirManual() {
     if (cliFonte() === 'texto') {
-      const texto = $('cli-texto').value.trim();
-      if (texto.length < 40) throw new Error('Cole as regras do manual (pelo menos algumas linhas).');
-      return { tipo: 'texto', texto };
+      if ($('cli-texto').value.trim().length < 40) throw new Error('Cole as regras do manual (pelo menos algumas linhas).');
+      return;
     }
     if (!cliArquivo) throw new Error('Escolha o PDF do manual do cliente.');
     if (cliArquivo.type !== 'application/pdf') throw new Error('O manual precisa ser um arquivo PDF.');
-    if (cliArquivo.size > 3 * 1048576) throw new Error('O PDF do manual passa de 3 MB. Comprima o arquivo ou cole as regras como texto.');
-    return { tipo: 'pdf', data: await lerBase64(cliArquivo), nomeArquivo: cliArquivo.name };
+    if (cliArquivo.size > 100 * 1048576) throw new Error('O PDF do manual passa de 100 MB. Comprima o arquivo (ex.: ilovepdf.com) ou envie só as páginas principais.');
+  }
+
+  // Regras coladas vão no próprio pedido; o PDF vai direto para o armazenamento
+  async function cliManualDoFormulario(nome, senha) {
+    if (cliFonte() === 'texto') return { tipo: 'texto', texto: $('cli-texto').value.trim() };
+    const { upload } = await import('/assets/blob-upload.js');
+    cliStatus('Enviando o PDF… 0%');
+    await upload('clientes/' + gerarCodigo(nome) + '/manual-original.pdf', cliArquivo, {
+      access: 'private',
+      handleUploadUrl: '/api/upload',
+      clientPayload: JSON.stringify({ acao: cliModo, nome, senha }),
+      contentType: 'application/pdf',
+      onUploadProgress: (p) => cliStatus('Enviando o PDF… ' + Math.round(p.percentage) + '%')
+    });
+    return { tipo: 'pdf-enviado', nomeArquivo: cliArquivo.name };
   }
 
   $('cli-enviar').addEventListener('click', async () => {
@@ -470,19 +510,24 @@
       if (!nome) throw new Error('Informe o nome do cliente.');
       if (senha.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.');
       const corpo = { acao: cliModo, nome, senha };
-      if (cliModo !== 'entrar') corpo.manual = await cliManualDoFormulario();
+      if (cliModo !== 'entrar') cliConferirManual();
       btn.disabled = true; btn.textContent = cliModo === 'entrar' ? 'Entrando…' : 'Salvando…';
-      const resp = await fetch('/api/clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
-      let dados;
-      try { dados = await resp.json(); } catch (_) { throw new Error(resp.status === 413 ? 'Arquivo grande demais para enviar.' : 'O servidor não respondeu corretamente (código ' + resp.status + ').'); }
-      if (!resp.ok) throw new Error(dados.erro || 'Não foi possível concluir.');
-      cliente = { nome: dados.cliente.nome, senha, manual: dados.cliente.manual };
+      if (cliModo === 'cadastrar') await chamarClientes({ acao: 'verificar', nome, senha });
+      if (cliModo !== 'entrar') {
+        corpo.manual = await cliManualDoFormulario(nome, senha);
+        cliStatus(corpo.manual.tipo === 'pdf-enviado'
+          ? 'PDF enviado. A IA está lendo o manual inteiro e anotando as regras da marca. Isso leva de 1 a 3 minutos, só desta vez…'
+          : 'Salvando as regras…');
+      }
+      const dados = await chamarClientes(corpo);
+      cliente = { nome: dados.cliente.nome, senha, manual: dados.cliente.manual, regras: dados.cliente.regras };
       guardar('am-cliente', cliente.nome);
       cliArquivo = null; $('cli-arq').value = ''; $('cli-arq-nome').textContent = ''; $('cli-texto').value = '';
       cliModoNovo('entrar');
     } catch (e) {
       cliMsg(e.message);
     } finally {
+      cliStatus('');
       btn.disabled = false; if (btn.textContent.endsWith('…')) btn.textContent = rotulo;
     }
   });

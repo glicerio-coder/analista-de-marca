@@ -1,8 +1,11 @@
 {
   "functions": {
     "api/analyze.js": {
-      "maxDuration": 60,
+      "maxDuration": 120,
       "includeFiles": "{skills,dados}/**"
+    },
+    "api/clientes.js": {
+      "maxDuration": 300
     }
   }
 }
